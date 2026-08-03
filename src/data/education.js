@@ -1,0 +1,45 @@
+export const education = [
+  {
+    id: 1,
+    degree: 'B.Sc. Physics',
+    institution: 'Government Arts College, Udhagamandalam',
+    university: 'Bharathiar University',
+    period: 'Aug 2022 – May 2025',
+    grade: 'CGPA 8.35 / 10',
+    description: 'Specialized in observational and theoretical astrophysics. Conducted research on dark matter, cosmology, and galaxy dynamics. Contributed to radio astronomy instrumentation R&D.',
+    icon: '🎓',
+    color: '#7c3aed',
+    side: 'right',
+  },
+  {
+    id: 2,
+    degree: 'XII Standard (Higher Secondary)',
+    institution: 'N.A. Annapparaja Memorial HSS',
+    university: 'Tamil Nadu State Board',
+    period: '2021 – 2022',
+    grade: '70%',
+    description: 'Completed higher secondary education with a focus on Physics, Chemistry, and Mathematics — the foundational sciences for astrophysics research.',
+    icon: '📚',
+    color: '#2563eb',
+    side: 'left',
+  },
+  {
+    id: 3,
+    degree: 'X Standard (Secondary)',
+    institution: 'N.A. Annapparaja Memorial HSS',
+    university: 'Tamil Nadu State Board',
+    period: '2019 – 2020',
+    grade: '73.6%',
+    description: 'Secondary school education developing analytical and mathematical foundations.',
+    icon: '🏫',
+    color: '#06b6d4',
+    side: 'right',
+  },
+];
+
+export const stats = [
+  { value: 3, suffix: '', label: 'Research Internships', icon: '🔬' },
+  { value: 2, suffix: '', label: 'Conference Presentations', icon: '🎤' },
+  { value: 2, suffix: '', label: 'Completed Projects', icon: '🌌' },
+  { value: 8.35, suffix: '', label: 'CGPA (B.Sc. Physics)', icon: '⭐', isDecimal: true },
+];

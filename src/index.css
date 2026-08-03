@@ -1,0 +1,483 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark theme defaults */
+    --bg: #05060d;
+    --bg-secondary: #0d0f1a;
+    --surface: rgba(255, 255, 255, 0.04);
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.2);
+    --text-primary: #f5f5f7;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --accent: #fbbf24;
+    --accent-glow: rgba(251, 191, 36, 0.3);
+    --nebula-1: #7c3aed;
+    --nebula-2: #2563eb;
+    --nebula-3: #06b6d4;
+    --orb-1: rgba(124, 58, 237, 0.15);
+    --orb-2: rgba(37, 99, 235, 0.12);
+    --orb-3: rgba(6, 182, 212, 0.1);
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --gradient: linear-gradient(135deg, #7c3aed, #2563eb, #06b6d4);
+  }
+
+  .light {
+    --bg: #fafafa;
+    --bg-secondary: #f0f0f5;
+    --surface: rgba(255, 255, 255, 0.8);
+    --surface-hover: rgba(255, 255, 255, 0.95);
+    --border: rgba(0, 0, 0, 0.08);
+    --border-hover: rgba(0, 0, 0, 0.2);
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --accent: #d97706;
+    --accent-glow: rgba(217, 119, 6, 0.2);
+    --nebula-1: #6d28d9;
+    --nebula-2: #1d4ed8;
+    --nebula-3: #0891b2;
+    --orb-1: rgba(109, 40, 217, 0.08);
+    --orb-2: rgba(29, 78, 216, 0.07);
+    --orb-3: rgba(8, 145, 178, 0.06);
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    --gradient: linear-gradient(135deg, #6d28d9, #1d4ed8, #0891b2);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  section[id] {
+    scroll-margin-top: 72px;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.4s ease, color 0.4s ease;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  ::selection {
+    background: rgba(124, 58, 237, 0.3);
+    color: #fff;
+  }
+
+  /* White-on-pale-violet is unreadable over the light theme's surfaces */
+  .light ::selection {
+    background: rgba(109, 40, 217, 0.22);
+    color: #111827;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.5);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.8);
+  }
+}
+
+@layer components {
+  /*
+   * Glass card
+   *
+   * No backdrop-filter in dark mode. The particle canvas sits behind the page
+   * content, and blurring a field of white/pale particles through a 4%-white
+   * surface smeared them into a bright white wash inside every card — which
+   * drifted around as you scrolled, since the canvas is position:fixed while
+   * the cards move. Light mode keeps the frosted look (see below): its
+   * particles are dark and its surface is 75% opaque, so nothing bleeds.
+   */
+  .glass-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+  }
+
+  .glass-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(124, 58, 237, 0.2);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Squircle shape for logos & avatars */
+  .squircle {
+    border-radius: 30% !important;
+  }
+  .squircle-ring {
+    border-radius: 32% !important;
+  }
+
+  /* Gradient button */
+  .btn-primary {
+    background: var(--gradient);
+    color: white;
+    padding: 0.75rem 1.75rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #9333ea, #3b82f6, #22d3ee);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .btn-primary:hover::before {
+    opacity: 1;
+  }
+
+  .btn-primary span {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Outline button */
+  .btn-outline {
+    background: transparent;
+    color: var(--text-primary);
+    padding: 0.75rem 1.75rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    border: 1px solid var(--border-hover);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .btn-outline:hover {
+    border-color: var(--nebula-1);
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+    color: var(--nebula-1);
+  }
+
+  /*
+   * Glass button
+   *
+   * backdrop-filter is deliberately absent. On the hero the Résumé button sits
+   * over the animated 3-D canvas, and `will-change: transform, backdrop-filter`
+   * promoted it to its own compositor layer that sampled the backdrop wrong —
+   * rendering the pill as a flat muddy-grey slab instead of glass, and smearing
+   * the planet behind it. framer-motion's whileHover scale made it worse by
+   * re-compositing the layer on every frame. A plain translucent surface gives
+   * the same look with none of the artefacts.
+   */
+  .btn-glass {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+  }
+
+  .btn-glass:hover {
+    background: var(--surface-hover);
+    border-color: var(--nebula-1);
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+    color: var(--text-primary);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.75rem 1.25rem;
+    border-radius: 999px;
+    font-weight: 500;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .btn-ghost:hover {
+    color: var(--text-primary);
+    background: var(--surface);
+  }
+
+  /* Orb decorative blobs */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  /* Gradient border on hover trick */
+  .gradient-border {
+    position: relative;
+    background: var(--surface);
+    border-radius: 16px;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1px;
+    background: var(--gradient);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .gradient-border:hover::before {
+    opacity: 1;
+  }
+
+  /* Section headers */
+  .section-eyebrow {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--nebula-3);
+    margin-bottom: 0.75rem;
+  }
+
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-bottom: 1.25rem;
+  }
+
+  .section-subtitle {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.7;
+  }
+
+  /*
+   * Tag chip
+   *
+   * --tag-accent is set per card by ProjectCard to that project's colour, so
+   * the chips match the card's top accent bar and its "Click for details"
+   * link instead of every card showing the same violet.
+   *
+   * The raw accent is too dark to read on a dark card and too light on a
+   * white one, so it is mixed toward white/black per theme rather than used
+   * directly. The plain declarations above each color-mix() are fallbacks for
+   * browsers without color-mix() support — they keep the original violet.
+   *
+   * The default lives in the var() fallback rather than as a `--tag-accent:`
+   * declaration here: declaring it on .tag-chip would set the property on the
+   * chip itself and shadow the value inherited from the card.
+   */
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+
+    background: rgba(124, 58, 237, 0.15);
+    background: color-mix(in srgb, var(--tag-accent, #7c3aed) 15%, transparent);
+    color: #a78bfa;
+    color: color-mix(in srgb, var(--tag-accent, #7c3aed) 60%, #ffffff);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    border-color: color-mix(in srgb, var(--tag-accent, #7c3aed) 28%, transparent);
+  }
+
+  /* Noise overlay */
+  .noise-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 150px 150px;
+  }
+
+  /* Navigation active indicator */
+  .nav-link {
+    position: relative;
+    color: var(--text-secondary);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+    padding: 0.25rem 0;
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0%;
+    height: 2px;
+    background: var(--gradient);
+    border-radius: 1px;
+    transition: width 0.3s ease;
+  }
+
+  .nav-link:hover, .nav-link.active {
+    color: var(--text-primary);
+  }
+
+  .nav-link:hover::after, .nav-link.active::after {
+    width: 100%;
+  }
+
+  /* Timeline connector */
+  .timeline-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(124, 58, 237, 0.5), rgba(37, 99, 235, 0.5), transparent);
+    transform: translateX(-50%);
+  }
+
+  /* Animated counter */
+  @keyframes countup {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Focus visible */
+  :focus-visible {
+    outline: 2px solid rgba(124, 58, 237, 0.8);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+/* Page transition overlay */
+.transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Hero backdrop — theme adaptive */
+.hero-backdrop {
+  background: radial-gradient(ellipse 65% 85% at 28% 50%, rgba(5, 6, 13, 0.65) 20%, transparent 75%);
+}
+
+.light .hero-backdrop {
+  background: radial-gradient(ellipse 65% 85% at 28% 50%, rgba(250, 250, 250, 0.80) 20%, rgba(250, 250, 250, 0.30) 60%, transparent 85%);
+}
+
+/* Light mode specific overrides */
+.light .btn-outline {
+  border-color: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+}
+
+.light .btn-ghost {
+  color: var(--text-secondary);
+}
+
+.light .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+}
+
+/* Light mode glass cards — frosting is safe here, see the .glass-card note */
+.light .glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0,0,0,0.05);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+.light .glass-card:hover {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12px 40px rgba(109, 40, 217, 0.12), 0 0 0 1px rgba(109, 40, 217, 0.15);
+  border-color: rgba(109, 40, 217, 0.15);
+}
+
+/*
+ * Tag chips: #a78bfa is tuned for a near-black backdrop and drops to roughly
+ * 2:1 contrast on the light theme's white cards. Darken text and border there.
+ */
+.light .tag-chip {
+  background: rgba(109, 40, 217, 0.1);
+  background: color-mix(in srgb, var(--tag-accent, #6d28d9) 12%, transparent);
+  color: #5b21b6;
+  color: color-mix(in srgb, var(--tag-accent, #6d28d9) 72%, #000000);
+  border-color: rgba(109, 40, 217, 0.25);
+  border-color: color-mix(in srgb, var(--tag-accent, #6d28d9) 30%, transparent);
+}
+
+/* Light mode glass buttons */
+.light .btn-glass {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--text-primary);
+}
+
+.light .btn-glass:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--nebula-1);
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* html { scroll-behavior: smooth } is not covered by the rules above —
+     it has to be switched off explicitly or in-page jumps still animate. */
+  html {
+    scroll-behavior: auto;
+  }
+}
