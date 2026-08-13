@@ -18,7 +18,20 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState('home');
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    /*
+     * The scroll listener fires dozens of times a second but the value it
+     * derives is a single boolean that flips twice per page. Comparing against
+     * the last value keeps React out of the scroll path entirely except at the
+     * two moments the bar actually changes appearance.
+     */
+    let lastScrolled = null;
+    const handleScroll = () => {
+      const next = window.scrollY > 20;
+      if (next !== lastScrolled) {
+        lastScrolled = next;
+        setScrolled(next);
+      }
+    };
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
 
@@ -69,10 +82,18 @@ export default function Navbar() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         style={{
-          background: scrolled 
-            ? (theme === 'dark' ? 'rgba(5, 6, 13, 0.85)' : 'rgba(250, 250, 250, 0.85)') 
+          background: scrolled
+            ? (theme === 'dark' ? 'rgba(5, 6, 13, 0.85)' : 'rgba(250, 250, 250, 0.85)')
             : 'transparent',
-          backdropFilter: 'blur(20px)',
+          /*
+           * Only blur once the bar actually has a surface to blur *into*. The
+           * filter used to be unconditional, which meant that at the top of the
+           * page — where the bar is fully transparent and the effect is
+           * invisible — the browser still promoted a full-width strip to its
+           * own layer and re-sampled everything scrolling beneath it.
+           */
+          backdropFilter: scrolled ? 'blur(20px)' : 'none',
+          WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
           borderBottom: scrolled ? '1px solid var(--border)' : '1px solid transparent',
           transition: 'background-color 0.3s ease, border-color 0.3s ease',
         }}
@@ -99,6 +120,11 @@ export default function Navbar() {
               <img
                 src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.jpg'}
                 alt="Akash Sankar Logo"
+                width={40}
+                height={40}
+                // Intrinsic dimensions let the browser reserve the box before
+                // the file arrives, so the nav row does not reflow on load.
+                decoding="async"
                 className="w-full h-full object-cover squircle"
                 style={{ borderRadius: '30%' }}
               />
@@ -117,7 +143,10 @@ export default function Navbar() {
                 onClick={() => scrollToSection(id)}
                 className={`nav-link ${activeSection === id ? 'active' : ''}`}
                 aria-current={activeSection === id ? 'true' : undefined}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                // No `padding: 0` here: an inline declaration outranks any
+                // stylesheet rule, so it silently cancelled .nav-link's own
+                // vertical padding and left these as 22px-tall hit targets.
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 {label}
               </button>
@@ -184,8 +213,8 @@ export default function Navbar() {
         className="md:hidden fixed left-0 right-0 z-[99] px-4 pointer-events-none"
         style={{ bottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}
       >
-        <div 
-          className="pointer-events-auto flex items-center justify-between px-6 py-3 rounded-2xl shadow-xl" 
+        <div
+          className="pointer-events-auto flex items-center justify-between px-3 py-2 rounded-2xl shadow-xl"
           style={{
             background: theme === 'dark' ? 'rgba(5, 6, 13, 0.92)' : 'rgba(250, 250, 250, 0.92)',
             backdropFilter: 'blur(20px)',
@@ -196,7 +225,14 @@ export default function Navbar() {
             <button
               key={id}
               onClick={() => scrollToSection(id)}
-              className="flex flex-col items-center gap-1 transition-transform active:scale-95"
+              /*
+               * The tap target used to be exactly as wide as the label — the
+               * "Skills" button measured 25px across, so the gaps between items
+               * were dead space that swallowed near-misses. Padding plus a
+               * min-width gives each item a ~56px target without changing how
+               * the bar looks.
+               */
+              className="flex flex-col items-center justify-center gap-1 min-w-[56px] py-1.5 rounded-xl transition-transform active:scale-95"
               aria-current={activeSection === id ? 'true' : undefined}
               style={{
                 color: activeSection === id ? 'var(--nebula-1)' : 'var(--text-muted)',
@@ -204,7 +240,6 @@ export default function Navbar() {
                 border: 'none',
                 cursor: 'pointer',
                 WebkitTapHighlightColor: 'transparent',
-                padding: 0
               }}
             >
               <Icon size={20} />

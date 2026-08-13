@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Honour PORT when the environment assigns one; falls back to Vite's default.
+  server: {
+    port: process.env.PORT ? Number(process.env.PORT) : 5173,
+  },
   build: {
     rollupOptions: {
       output: {

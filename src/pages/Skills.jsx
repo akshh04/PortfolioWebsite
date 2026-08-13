@@ -24,21 +24,25 @@ const iconRegistry = {
   Search, PenLine, Presentation, Brain,
 };
 
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
+const VIEWPORT = { once: true, margin: '-80px' };
+
 export default function Skills() {
   return (
     <div className="relative overflow-hidden">
 
       <GradientOrb size={550} color="rgba(124,58,237,0.13)" top="-100px" right="-100px" delay={0} />
       <GradientOrb size={450} color="rgba(6,182,212,0.11)" bottom="100px" left="-100px" delay={2} />
-      <GradientOrb size={350} color="rgba(37,99,235,0.1)" top="50%" right="30%" delay={4} />
+      <GradientOrb size={350} color="rgba(37,99,235,0.1)" top="50%" right="30%" delay={4} mobileHidden />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-6 pt-16 pb-8 md:pb-12">
+      <div className="section-shell max-w-6xl">
 
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.7, ease: EASE_OUT_EXPO }}
           className="text-center mb-16"
         >
           <p className="section-eyebrow">Technical & Domain</p>
@@ -56,10 +60,10 @@ export default function Skills() {
             return (
               <motion.section
                 key={category.id}
-                initial={{ opacity: 0, y: 60 }}
+                initial={{ opacity: 0, y: 32 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ duration: 0.6, delay: catIndex * 0.1 }}
+                viewport={VIEWPORT}
+                transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
               >
                 {/* Category header */}
                 <div className="flex items-center gap-4 mb-6">
@@ -91,7 +95,10 @@ export default function Skills() {
                         name={skill.name}
                         icon={SkillIcon}
                         desc={skill.desc}
-                        delay={(catIndex * 0.05) + (skillIndex * 0.05)}
+                        // Capped: the old formula added the category index on
+                        // top, so chips in the last category waited ~0.35s
+                        // after coming into view before they appeared.
+                        delay={Math.min(skillIndex * 0.04, 0.2)}
                       />
                     );
                   })}
@@ -103,10 +110,10 @@ export default function Skills() {
 
         {/* Bottom CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
           className="mt-20 text-center"
         >
           <div 

@@ -11,15 +11,16 @@ export default function Projects() {
 
       <GradientOrb size={500} color="rgba(124,58,237,0.14)" top="-80px" left="-100px" delay={0} />
       <GradientOrb size={450} color="rgba(37,99,235,0.12)" bottom="150px" right="-80px" delay={2} />
-      <GradientOrb size={350} color="rgba(6,182,212,0.1)" top="40%" left="50%" delay={4} />
+      <GradientOrb size={350} color="rgba(6,182,212,0.1)" top="40%" left="50%" delay={4} mobileHidden />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-8 md:pb-12">
+      <div className="section-shell max-w-7xl">
 
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="text-center mb-16"
         >
           <p className="section-eyebrow">Research & Work</p>
@@ -39,10 +40,10 @@ export default function Projects() {
 
         {/* Call to collaborate */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="mt-20 text-center"
         >
           <div 
@@ -65,7 +66,10 @@ export default function Projects() {
                 e.preventDefault();
                 scrollToSection('contact');
               }}
-              className="inline-flex items-center gap-2 mt-4 text-sm font-medium"
+              // py-2 px-1 keeps the link visually where it was while giving it
+              // a target tall enough to hit reliably on a touchscreen — it was
+              // a 20px-high strip.
+              className="inline-flex items-center gap-2 mt-3 py-2 px-1 text-sm font-medium"
               style={{ color: 'var(--nebula-3)' }}
             >
               Get in touch →

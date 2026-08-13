@@ -55,6 +55,17 @@
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
+    /*
+     * Keeps the scrollbar's track reserved even while the project modal locks
+     * scrolling. Without it, hiding the overflow widened the viewport by the
+     * scrollbar's 6px, which nudged the centred nav bar 3px sideways every time
+     * a modal opened or closed. Reserving the gutter means nothing moves.
+     */
+    scrollbar-gutter: stable;
+    /* iOS Safari inflates font sizes when a phone is rotated to landscape,
+       which broke the hero's carefully sized headline. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   section[id] {
@@ -67,6 +78,19 @@
     font-family: 'Inter', sans-serif;
     transition: background-color 0.4s ease, color 0.4s ease;
     overflow-x: hidden;
+    /* Thin strokes at these sizes render heavy and slightly blurry with the
+       default subpixel antialiasing on a dark background. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Grey flash on every tap on Android; the components supply their own
+       press feedback via whileTap. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Opts out of double-tap-to-zoom on controls, which is what makes mobile
+     browsers hold a tap for ~300ms before dispatching the click. */
+  button, a {
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -116,13 +140,28 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: var(--card-shadow);
-    transition: all 0.3s ease;
+    /*
+     * `transition: all` also animates layout properties, so any width/padding
+     * change on the card — a tag chip wrapping, a description expanding — was
+     * animated too, and the browser had to check every property on every
+     * change. Only these three actually differ between rest and hover.
+     */
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
-  .glass-card:hover {
-    background: var(--surface-hover);
-    border-color: var(--border-hover);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(124, 58, 237, 0.2);
+  /*
+   * Hover styling is gated behind `hover: hover` throughout this file.
+   * On a touchscreen there is no pointer to leave the element, so the browser
+   * applies :hover on tap and leaves it applied until something else is
+   * tapped — every card and button a visitor touched on a phone stayed lit up
+   * afterwards.
+   */
+  @media (hover: hover) {
+    .glass-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(124, 58, 237, 0.2);
+    }
   }
 
   /* Gradient text */
@@ -164,8 +203,10 @@
     transition: opacity 0.3s ease;
   }
 
-  .btn-primary:hover::before {
-    opacity: 1;
+  @media (hover: hover) {
+    .btn-primary:hover::before {
+      opacity: 1;
+    }
   }
 
   .btn-primary span {
@@ -186,10 +227,12 @@
     white-space: nowrap;
   }
 
-  .btn-outline:hover {
-    border-color: var(--nebula-1);
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
-    color: var(--nebula-1);
+  @media (hover: hover) {
+    .btn-outline:hover {
+      border-color: var(--nebula-1);
+      box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+      color: var(--nebula-1);
+    }
   }
 
   /*
@@ -210,11 +253,13 @@
     transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
   }
 
-  .btn-glass:hover {
-    background: var(--surface-hover);
-    border-color: var(--nebula-1);
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
-    color: var(--text-primary);
+  @media (hover: hover) {
+    .btn-glass:hover {
+      background: var(--surface-hover);
+      border-color: var(--nebula-1);
+      box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+      color: var(--text-primary);
+    }
   }
 
   /* Ghost button */
@@ -229,9 +274,11 @@
     white-space: nowrap;
   }
 
-  .btn-ghost:hover {
-    color: var(--text-primary);
-    background: var(--surface);
+  @media (hover: hover) {
+    .btn-ghost:hover {
+      color: var(--text-primary);
+      background: var(--surface);
+    }
   }
 
   /* Orb decorative blobs */
@@ -263,8 +310,36 @@
     transition: opacity 0.3s ease;
   }
 
-  .gradient-border:hover::before {
-    opacity: 1;
+  @media (hover: hover) {
+    .gradient-border:hover::before {
+      opacity: 1;
+    }
+  }
+
+  /*
+   * Section shell
+   *
+   * Every page below the hero repeated the same wrapper by hand, and they had
+   * drifted apart: About opened with `pt-4 md:pt-16` while Skills, Projects and
+   * Contact used `pt-16`, so the gap above the first heading changed as you
+   * scrolled from one section to the next. One class now owns the rhythm; pages
+   * still set their own `max-w-*`, which is why no max-width is declared here.
+   */
+  .section-shell {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+    padding-top: 4rem;
+    padding-bottom: 3rem;
+  }
+
+  @media (min-width: 768px) {
+    .section-shell {
+      padding-top: 6rem;
+      padding-bottom: 5rem;
+    }
   }
 
   /* Section headers */
@@ -347,13 +422,19 @@
     font-weight: 500;
     font-size: 0.9rem;
     transition: color 0.2s ease;
-    padding: 0.25rem 0;
+    /*
+     * 0.25rem gave these a 22px-tall hit area. The desktop nav appears from
+     * 768px up, which includes every tablet — i.e. touch devices aiming at a
+     * 22px target. The extra padding lifts them to ~30px; the underline offset
+     * below is adjusted to match so the bar sits where it always did.
+     */
+    padding: 0.5rem 0;
   }
 
   .nav-link::after {
     content: '';
     position: absolute;
-    bottom: -2px;
+    bottom: 2px;
     left: 0;
     width: 0%;
     height: 2px;
@@ -362,12 +443,22 @@
     transition: width 0.3s ease;
   }
 
-  .nav-link:hover, .nav-link.active {
+  .nav-link.active {
     color: var(--text-primary);
   }
 
-  .nav-link:hover::after, .nav-link.active::after {
+  .nav-link.active::after {
     width: 100%;
+  }
+
+  @media (hover: hover) {
+    .nav-link:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-link:hover::after {
+      width: 100%;
+    }
   }
 
   /* Timeline connector */
@@ -422,9 +513,11 @@
   color: var(--text-secondary);
 }
 
-.light .btn-ghost:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .light .btn-ghost:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+  }
 }
 
 /* Light mode glass cards — frosting is safe here, see the .glass-card note */
@@ -436,10 +529,12 @@
   border-color: rgba(0, 0, 0, 0.07);
 }
 
-.light .glass-card:hover {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 40px rgba(109, 40, 217, 0.12), 0 0 0 1px rgba(109, 40, 217, 0.15);
-  border-color: rgba(109, 40, 217, 0.15);
+@media (hover: hover) {
+  .light .glass-card:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 40px rgba(109, 40, 217, 0.12), 0 0 0 1px rgba(109, 40, 217, 0.15);
+    border-color: rgba(109, 40, 217, 0.15);
+  }
 }
 
 /*
@@ -462,9 +557,11 @@
   color: var(--text-primary);
 }
 
-.light .btn-glass:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: var(--nebula-1);
+@media (hover: hover) {
+  .light .btn-glass:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: var(--nebula-1);
+  }
 }
 
 /* Reduced motion overrides */

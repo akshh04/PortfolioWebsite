@@ -122,6 +122,9 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
 
 const initialForm = { name: '', email: '', subject: '', message: '' };
 
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
+const VIEWPORT = { once: true, margin: '-80px' };
+
 export default function Contact() {
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
@@ -129,13 +132,28 @@ export default function Contact() {
   const [copied, setCopied] = useState(false);
   const nameInputRef = useRef(null);
   const resetTimerRef = useRef(null);
+  const copyTimerRef = useRef(null);
 
-  const handleCopyEmail = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText('akashsankar80@gmail.com');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  /*
+   * navigator.clipboard only exists in a secure context, so on a plain-http
+   * preview (or an older mobile browser) reading `.writeText` off it threw and
+   * the click handler died. The promise it returns can also reject when the
+   * permission is denied — which the old code never awaited, so the button
+   * cheerfully showed "Copied" for a copy that had not happened.
+   */
+  const handleCopyEmail = async () => {
+    const address = 'akashsankar80@gmail.com';
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Nothing useful to show inline here; the address is already on screen
+      // in full and selectable, so the visitor can copy it by hand.
+      setCopied(false);
+    }
   };
 
   useEffect(() => {
@@ -156,8 +174,11 @@ export default function Contact() {
     return () => window.removeEventListener('requestResume', handleRequestResume);
   }, []);
 
-  // Any pending status reset must not fire after unmount.
-  useEffect(() => () => clearTimeout(resetTimerRef.current), []);
+  // Any pending timer must not fire after unmount.
+  useEffect(() => () => {
+    clearTimeout(resetTimerRef.current);
+    clearTimeout(copyTimerRef.current);
+  }, []);
 
   const scheduleStatusReset = (ms) => {
     clearTimeout(resetTimerRef.current);
@@ -221,11 +242,11 @@ export default function Contact() {
   };
 
   const stagger = {
-    animate: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+    animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
   };
   const fadeUp = {
-    initial: { opacity: 0, y: 24 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT_EXPO } },
   };
 
   return (
@@ -233,15 +254,16 @@ export default function Contact() {
 
       <GradientOrb size={600} color="rgba(124,58,237,0.15)" top="-120px" right="-150px" delay={0} />
       <GradientOrb size={500} color="rgba(6,182,212,0.12)" bottom="-50px" left="-100px" delay={2} />
-      <GradientOrb size={400} color="rgba(37,99,235,0.1)" top="50%" left="40%" delay={4} />
+      <GradientOrb size={400} color="rgba(37,99,235,0.1)" top="50%" left="40%" delay={4} mobileHidden />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-16 pb-8 md:pb-12">
+      <div className="section-shell max-w-5xl">
 
         {/* Header */}
         <motion.div
           variants={stagger}
           initial="initial"
-          animate="animate"
+          whileInView="animate"
+          viewport={VIEWPORT}
           className="text-center mb-14"
         >
           <motion.p variants={fadeUp} className="section-eyebrow">Say hello</motion.p>
@@ -260,9 +282,10 @@ export default function Contact() {
           {/* Contact Form — 3/5 width */}
           <motion.div
             className="lg:col-span-3"
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            initial={{ opacity: 0, x: -28 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
           >
             <div className="glass-card p-8" style={{ border: '1px solid rgba(124,58,237,0.15)' }}>
               <div className="flex items-center gap-3 mb-6">
@@ -349,63 +372,84 @@ export default function Contact() {
           {/* Right column: email CTA + quick info — 2/5 */}
           <motion.div
             className="lg:col-span-2 flex flex-col gap-5"
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            initial={{ opacity: 0, x: 28 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 0.6, delay: 0.1, ease: EASE_OUT_EXPO }}
           >
-            {/* Direct email */}
-            <a href="mailto:akashsankar80@gmail.com" className="block no-underline">
-              <motion.div
-                className="glass-card p-6 cursor-pointer"
-                style={{ border: '1px solid rgba(124,58,237,0.15)' }}
-                whileHover={{ scale: 1.01 }}
-              >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
-                  style={{ background: 'var(--gradient)' }}>
-                  <Mail size={20} className="text-white" />
-                </div>
-                <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Email me directly</p>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
-                    akashsankar80@gmail.com
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleCopyEmail}
-                    className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 flex-shrink-0"
-                    style={{
-                      background: copied ? 'rgba(34, 197, 94, 0.15)' : 'var(--surface-hover)',
-                      color: copied ? '#22c55e' : 'var(--text-secondary)',
-                      border: copied ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--border)',
-                      fontFamily: 'Space Grotesk, sans-serif',
-                      height: '28px'
-                    }}
-                    title="Copy email address"
-                  >
-                    {copied ? (
-                      <span className="flex items-center gap-1 font-semibold whitespace-nowrap">
-                        <Check size={13} className="text-green-500 flex-shrink-0" />
-                        <span>Copied</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center">
-                        <Copy size={13} />
-                      </span>
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3)' }}>
-                  Open mail client <ExternalLink size={11} />
-                </p>
-              </motion.div>
-            </a>
+            {/*
+              Direct email.
 
-            {/* Resume */}
+              The copy button used to sit inside an <a href="mailto:"> wrapping
+              the whole card — a control nested in a link, which is invalid HTML
+              and gives assistive tech two conflicting actions for one element.
+              The link is now a stretched overlay covering the card, and the
+              copy button sits above it on a higher layer, so each control is a
+              sibling of the other and both have their own hit area.
+            */}
             <motion.div
-              className="glass-card p-6 cursor-pointer"
+              className="glass-card p-6 relative"
+              style={{ border: '1px solid rgba(124,58,237,0.15)' }}
+              whileHover={{ scale: 1.01 }}
+            >
+              <a
+                href="mailto:akashsankar80@gmail.com"
+                className="absolute inset-0 rounded-2xl no-underline"
+                aria-label="Email akashsankar80@gmail.com — opens your mail client"
+              />
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
+                style={{ background: 'var(--gradient)' }}>
+                <Mail size={20} className="text-white" />
+              </div>
+              <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Email me directly</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
+                  akashsankar80@gmail.com
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="relative z-10 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 flex-shrink-0"
+                  style={{
+                    background: copied ? 'rgba(34, 197, 94, 0.15)' : 'var(--surface-hover)',
+                    color: copied ? '#22c55e' : 'var(--text-secondary)',
+                    border: copied ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--border)',
+                    fontFamily: 'Space Grotesk, sans-serif',
+                    height: '28px',
+                    cursor: 'pointer',
+                  }}
+                  aria-label={copied ? 'Email address copied' : 'Copy email address'}
+                  title="Copy email address"
+                >
+                  {copied ? (
+                    <span className="flex items-center gap-1 font-semibold whitespace-nowrap">
+                      <Check size={13} className="text-green-500 flex-shrink-0" />
+                      <span>Copied</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <Copy size={13} />
+                    </span>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3)' }}>
+                Open mail client <ExternalLink size={11} />
+              </p>
+            </motion.div>
+
+            {/*
+              Resume. This was a clickable <div>: no keyboard focus, no role,
+              invisible to anyone not using a mouse. A real button does the same
+              job and comes with all of that for free.
+            */}
+            <motion.button
+              type="button"
+              className="glass-card p-6 cursor-pointer w-full text-left block"
               style={{ border: '1px solid rgba(37,99,235,0.15)' }}
               onClick={() => window.dispatchEvent(new CustomEvent('requestResume'))}
               whileHover={{ scale: 1.02, boxShadow: '0 16px 48px rgba(37,99,235,0.2)' }}
+              whileTap={{ scale: 0.99 }}
             >
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
                 style={{ background: 'linear-gradient(135deg, #2563eb, #06b6d4)' }}>
@@ -418,7 +462,7 @@ export default function Contact() {
                 Request Résumé
               </p>
               <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>via Email</p>
-            </motion.div>
+            </motion.button>
 
             {/* Response time note */}
             <div className="glass-card p-5" style={{ border: '1px solid var(--border)' }}>

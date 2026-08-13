@@ -1,49 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Tag } from 'lucide-react';
 
 export default function ProjectCard({ project, delay = 0 }) {
   const [expanded, setExpanded] = useState(false);
+  const dialogRef = useRef(null);
+  const openerRef = useRef(null);
 
   const isUpcoming = project.status === 'upcoming';
 
   // Escape to close, and lock the background so the page behind the modal
   // doesn't scroll away under it.
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded) return undefined;
 
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') setExpanded(false);
+      if (e.key === 'Escape') {
+        setExpanded(false);
+        return;
+      }
+
+      /*
+       * Focus trap. Without it, tabbing out of the dialog walked into the page
+       * behind — which is hidden behind a backdrop but still fully focusable,
+       * so a keyboard user ended up driving controls they could not see.
+       */
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    /*
+     * Scroll lock.
+     *
+     * The lock goes on <html>, not <body>. index.css sets `overflow-x: hidden`
+     * on both, which makes <html> the element that owns the viewport
+     * scrollbar — so hiding <body>'s overflow stopped the page scrolling but
+     * left the scrollbar in place, freeing no width. Padding <body> to
+     * "compensate" then shifted every centred element 3px left as the modal
+     * opened and back again as it closed.
+     *
+     * `scrollbar-gutter: stable` (index.css) keeps the track reserved through
+     * the lock, so on browsers that support it the content width never changes
+     * and no compensation is wanted. The measurement below is the fallback for
+     * browsers that ignore the gutter.
+     *
+     * It measures <body>'s rendered width, not root.clientWidth: clientWidth
+     * reports the reserved gutter as available space, so it "grows" by 6px on
+     * lock even when the layout has not moved at all — compensating for that
+     * phantom width was itself pushing centred content 3px sideways.
+     */
+    const root = document.documentElement;
+    const contentWidth = () => document.body.getBoundingClientRect().width;
+    const widthBeforeLock = contentWidth();
+    const previousOverflow = root.style.overflow;
+    const previousPadding = root.style.paddingRight;
+    root.style.overflow = 'hidden';
+    const freed = contentWidth() - widthBeforeLock;
+    if (freed > 0) {
+      const current = parseFloat(getComputedStyle(root).paddingRight) || 0;
+      root.style.paddingRight = `${current + freed}px`;
+    }
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      root.style.overflow = previousOverflow;
+      root.style.paddingRight = previousPadding;
     };
+  }, [expanded]);
+
+  /*
+   * Move focus into the dialog on open and hand it back to the card on close,
+   * so the keyboard position never silently resets to the top of the document.
+   * `hasOpened` exists because this effect also runs on mount, and without it
+   * every card on the page would grab focus during the initial render.
+   */
+  const hasOpened = useRef(false);
+  useEffect(() => {
+    if (expanded) {
+      hasOpened.current = true;
+      dialogRef.current?.querySelector('button')?.focus();
+    } else if (hasOpened.current) {
+      openerRef.current?.focus?.();
+    }
   }, [expanded]);
 
   return (
     <>
       <motion.div
+        ref={openerRef}
         className="glass-card gradient-border p-6 cursor-pointer relative overflow-hidden"
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 28 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-80px' }}
-        transition={{ duration: 0.5, delay }}
-        whileHover={{ 
-          y: -8,
-          rotateX: 2,
-          rotateY: 2,
+        transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+        /*
+         * rotateX/rotateY were doing nothing useful: a 3-D rotation needs a
+         * `perspective` on the *parent* to project, and the grid has none, so
+         * the card was being skewed flat rather than tilted — it just made the
+         * text edges shimmer on hover. A clean lift reads better and costs one
+         * composited transform.
+         */
+        whileHover={{
+          y: -6,
           boxShadow: `0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px ${project.color}40`,
         }}
+        whileTap={{ scale: 0.99 }}
         // --tag-accent tints this card's .tag-chip children to project.color,
         // matching the top accent bar and the "Click for details" link.
-        style={{ transformStyle: 'preserve-3d', '--tag-accent': project.color }}
+        style={{ '--tag-accent': project.color }}
         onClick={() => !isUpcoming && setExpanded(true)}
         onKeyDown={(e) => {
           if (isUpcoming) return;
@@ -125,17 +203,23 @@ export default function ProjectCard({ project, delay = 0 }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={() => setExpanded(false)}
             role="dialog"
             aria-modal="true"
             aria-labelledby={`project-title-${project.id}`}
           >
-            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} />
+            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
             <motion.div
-              className="glass-card relative w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8"
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
+              ref={dialogRef}
+              // max-h-[80vh] left the dialog running under the mobile bottom
+              // nav on short phones; dvh tracks the real visible height and the
+              // extra headroom on small screens keeps the close button reachable.
+              className="glass-card relative w-full max-w-2xl max-h-[85dvh] overflow-y-auto overscroll-contain p-6 sm:p-8"
+              initial={{ scale: 0.96, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.96, y: 16, opacity: 0 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               onClick={e => e.stopPropagation()}
               // Set again here: the modal is portaled to document.body, so it
               // is outside the card and cannot inherit the card's accent.

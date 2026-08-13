@@ -49,12 +49,16 @@ function PageLoader() {
   );
 }
 
-// Minimum time (ms) the loading screen stays visible so the animation looks good
-const MIN_LOADER_DURATION = 2400;
+// Minimum time (ms) the loading screen stays visible. Long enough that the
+// preloader reads as a deliberate intro rather than a flash of chrome, short
+// enough that it never becomes the thing keeping a visitor waiting — on a warm
+// cache the chunks are ready well before this elapses, so this figure *is* the
+// time-to-content.
+const MIN_LOADER_DURATION = 900;
 // Hard cap: a hung/never-settling import must never trap a visitor on the
 // preloader. Past this point we reveal the app regardless of chunk state —
 // Suspense still covers anything that genuinely hasn't arrived.
-const MAX_LOADER_DURATION = 8000;
+const MAX_LOADER_DURATION = 6000;
 
 function dismissPreloader() {
   const preloader = document.getElementById('preloader');
@@ -81,21 +85,34 @@ function usePreloader() {
       setReady(true);
     };
 
-    // Pre-load all lazy chunks in parallel
-    const chunks = [
-      import('./pages/Home'),
-      import('./pages/About'),
-      import('./pages/Skills'),
-      import('./pages/Projects'),
-      import('./pages/Contact'),
-    ];
+    /*
+     * Only the Home chunk gates the reveal. Waiting on all five meant the
+     * visitor stared at the preloader while Contact's EmailJS bundle and
+     * Skills' icon set downloaded — code that nothing on screen needed yet.
+     * The rest are warmed during idle time below, so they are already in
+     * memory by the time a scroll reaches them, and Suspense covers the case
+     * where a very fast scroll outruns the prefetch.
+     */
+    const belowTheFold = () =>
+      Promise.allSettled([
+        import('./pages/About'),
+        import('./pages/Skills'),
+        import('./pages/Projects'),
+        import('./pages/Contact'),
+      ]);
 
     // A failed chunk must not wedge the loader — allSettled never rejects.
-    Promise.allSettled(chunks).then(() => {
+    Promise.allSettled([import('./pages/Home')]).then(() => {
       if (cancelled) return;
       const remaining = Math.max(0, MIN_LOADER_DURATION - (Date.now() - startTime));
       revealTimer = setTimeout(reveal, remaining);
     });
+
+    // requestIdleCallback keeps the prefetch off the critical path; Safari
+    // lacks it, where a short timer is close enough.
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(belowTheFold, { timeout: 2500 })
+      : setTimeout(belowTheFold, 600);
 
     const failsafeTimer = setTimeout(reveal, MAX_LOADER_DURATION);
 
@@ -103,6 +120,8 @@ function usePreloader() {
       cancelled = true;
       clearTimeout(revealTimer);
       clearTimeout(failsafeTimer);
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
+      else clearTimeout(idle);
     };
   }, []);
 

@@ -8,10 +8,13 @@ function TimelineItem({ item, index, isLast }) {
   const Card = (
     <motion.div
       className="glass-card gradient-border p-6 w-full"
-      initial={{ opacity: 0, x: isLeft ? -60 : 60 }}
+      // ±60px pushed the card past the viewport edge for the duration of the
+      // animation (measured 30px over at 768px wide), so it was visibly clipped
+      // as it slid in. ±32 stays inside the gutter.
+      initial={{ opacity: 0, x: isLeft ? -32 : 32 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
+      transition={{ duration: 0.6, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ y: -4 }}
     >
       <div

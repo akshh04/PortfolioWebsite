@@ -28,9 +28,13 @@ export default function Footer() {
               background: theme === 'dark' ? '#05060d' : '#ffffff',
             }}
           >
-            <img 
+            <img
               src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.jpg'}
               alt="Akash Sankar Logo"
+              width={48}
+              height={48}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover squircle"
               style={{ borderRadius: '30%' }}
             />

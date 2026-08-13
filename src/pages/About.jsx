@@ -6,30 +6,43 @@ import Timeline from '../components/ui/Timeline';
 import { stats } from '../data/education';
 import { useTheme } from '../context/ThemeContext';
 
+// Ease-out cubic: the number sprints away from zero and settles onto the final
+// value, instead of the old linear ramp that just looked like a stopwatch.
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
 function AnimatedCounter({ value, suffix, isDecimal, label, icon, delay = 0 }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-50px' });
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!inView) return;
-    const target = value;
-    const duration = 1800;
-    const steps = 60;
-    const increment = target / steps;
-    let current = 0;
-    let step = 0;
+    if (!inView) return undefined;
 
-    const timer = setInterval(() => {
-      step++;
-      current = Math.min(current + increment, target);
-      const isLast = step >= steps;
-      const displayValue = isLast ? target : current;
-      setCount(isDecimal ? Math.round(displayValue * 100) / 100 : Math.floor(displayValue));
-      if (isLast) clearInterval(timer);
-    }, duration / steps);
+    /*
+     * setInterval at 30ms had two problems: it is not aligned to the display's
+     * refresh, so every few ticks landed in the same frame as the previous one
+     * and the number visibly stuttered; and four counters meant four
+     * independent timers drifting against each other. Driving this from
+     * requestAnimationFrame gives one update per painted frame, and the browser
+     * suspends it automatically in a background tab.
+     */
+    const duration = 1600;
+    let raf;
+    let start;
 
-    return () => clearInterval(timer);
+    const tick = (now) => {
+      if (start === undefined) start = now;
+      const progress = Math.min((now - start) / duration, 1);
+      const current = value * easeOutCubic(progress);
+      setCount(isDecimal ? Math.round(current * 100) / 100 : Math.floor(current));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+      // Land exactly on the target — easing arrives asymptotically and
+      // rounding alone can leave 8.35 showing as 8.34.
+      else setCount(value);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [inView, value, isDecimal]);
 
   return (
@@ -52,10 +65,22 @@ function AnimatedCounter({ value, suffix, isDecimal, label, icon, delay = 0 }) {
   );
 }
 
+/*
+ * All five pages mount together behind the preloader, so `animate` fired every
+ * entrance animation on this page while it was still four screens below the
+ * fold. By the time anyone scrolled here the animation had long finished and
+ * the section simply appeared, fully formed — the effect was paid for and never
+ * seen. `whileInView` with `once` plays it at the moment it becomes visible,
+ * which is both cheaper and the thing the animation was written for.
+ */
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
+
 const sectionVariants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7 } },
+  hidden: { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_OUT_EXPO } },
 };
+
+const VIEWPORT = { once: true, margin: '-80px' };
 
 export default function About() {
   const { theme } = useTheme();
@@ -65,15 +90,16 @@ export default function About() {
       {/* Orbs */}
       <GradientOrb size={500} color="rgba(37,99,235,0.15)" top="-80px" right="-100px" delay={1} />
       <GradientOrb size={400} color="rgba(124,58,237,0.12)" bottom="200px" left="-80px" delay={3} />
-      <GradientOrb size={350} color="rgba(6,182,212,0.1)" top="50%" right="20%" delay={5} />
+      <GradientOrb size={350} color="rgba(6,182,212,0.1)" top="50%" right="20%" delay={5} mobileHidden />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-6 pt-4 md:pt-16 pb-8 md:pb-12">
-        
+      <div className="section-shell max-w-6xl">
+
         {/* Header */}
         <motion.div
           variants={sectionVariants}
           initial="hidden"
-          animate="visible"
+          whileInView="visible"
+          viewport={VIEWPORT}
           className="text-center mb-16"
         >
           <p className="section-eyebrow">Get to know me</p>
@@ -88,9 +114,13 @@ export default function About() {
           {/* Photo / Avatar */}
           <motion.div
             className="flex justify-center"
-            initial={{ opacity: 0, x: -60 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            // A -60px slide is wider than the gutter on a phone, so during the
+            // animation the card pushed past the viewport edge. 32px stays
+            // inside the padding while reading the same way.
+            initial={{ opacity: 0, x: -32 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 0.7, ease: EASE_OUT_EXPO }}
           >
             <div className="relative">
               {/* Rotating gradient ring */}
@@ -123,7 +153,11 @@ export default function About() {
                 <img
                   src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.jpg'}
                   alt="Akash Sankar Profile Logo"
-                  className="w-full h-full object-cover rounded-full transition-transform duration-500 hover:scale-105"
+                  width={224}
+                  height={224}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover rounded-full transition-transform duration-500 md:hover:scale-105"
                   style={{ borderRadius: '50%' }}
                 />
               </div>
@@ -132,9 +166,10 @@ export default function About() {
 
           {/* Bio text */}
           <motion.div
-            initial={{ opacity: 0, x: 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
+            initial={{ opacity: 0, x: 32 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 0.7, delay: 0.1, ease: EASE_OUT_EXPO }}
           >
             <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
               Exploring the cosmos, one equation at a time.
