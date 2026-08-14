@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Tag } from 'lucide-react';
+import { X, Calendar, Tag, ArrowUpRight } from 'lucide-react';
+import { EASE_OUT_EXPO, VIEWPORT } from '../../lib/motion';
 
 export default function ProjectCard({ project, delay = 0 }) {
   const [expanded, setExpanded] = useState(false);
@@ -102,11 +103,17 @@ export default function ProjectCard({ project, delay = 0 }) {
     <>
       <motion.div
         ref={openerRef}
-        className="glass-card gradient-border p-6 cursor-pointer relative overflow-hidden"
+        /*
+         * flex-col + h-full makes every card in a grid row the same height and
+         * pins the "Click for details" affordance to the bottom edge. Before
+         * this, cards sized to their own text, so a row could hold a tall card
+         * next to a short one with the call to action floating mid-card.
+         */
+        className={`glass-card gradient-border p-6 relative overflow-hidden flex flex-col h-full ${isUpcoming ? '' : 'cursor-pointer'}`}
         initial={{ opacity: 0, y: 28 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-80px' }}
-        transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+        viewport={VIEWPORT}
+        transition={{ duration: 0.55, delay, ease: EASE_OUT_EXPO }}
         /*
          * rotateX/rotateY were doing nothing useful: a 3-D rotation needs a
          * `perspective` on the *parent* to project, and the grid has none, so
@@ -114,11 +121,17 @@ export default function ProjectCard({ project, delay = 0 }) {
          * text edges shimmer on hover. A clean lift reads better and costs one
          * composited transform.
          */
-        whileHover={{
+        /*
+         * The glow is keyed to the project's own colour. It used to lead with
+         * `0 24px 64px rgba(0,0,0,0.5)` — a black shadow on a #05060d page,
+         * i.e. the page colour, so in dark mode the lift was carried entirely
+         * by the 1px ring and the card barely appeared to respond.
+         */
+        whileHover={isUpcoming ? undefined : {
           y: -6,
-          boxShadow: `0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px ${project.color}40`,
+          boxShadow: `0 20px 50px -12px ${project.color}55, 0 0 0 1px ${project.color}55`,
         }}
-        whileTap={{ scale: 0.99 }}
+        whileTap={isUpcoming ? undefined : { scale: 0.99 }}
         // --tag-accent tints this card's .tag-chip children to project.color,
         // matching the top accent bar and the "Click for details" link.
         style={{ '--tag-accent': project.color }}
@@ -142,9 +155,18 @@ export default function ProjectCard({ project, delay = 0 }) {
 
         {/* Upcoming overlay */}
         {isUpcoming && (
-          <div 
-            className="absolute inset-0 flex items-center justify-center rounded-2xl"
-            style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)' }}
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{
+              background: 'rgba(0,0,0,0.3)',
+              backdropFilter: 'blur(2px)',
+              WebkitBackdropFilter: 'blur(2px)',
+              // Matches the card so the veil does not square off its corners.
+              borderRadius: 'var(--r-lg)',
+              // Above the card's own content, which follows it in source order
+              // and would otherwise paint on top of the veil.
+              zIndex: 2,
+            }}
           >
             <span className="text-sm font-semibold px-3 py-1 rounded-full"
               style={{ background: 'rgba(156,163,175,0.2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
@@ -171,7 +193,9 @@ export default function ProjectCard({ project, delay = 0 }) {
           {project.shortDesc}
         </p>
 
-        <div className="flex flex-wrap gap-1.5">
+        {/* mt-auto: the tags and the affordance below settle against the bottom
+            of the card, so they line up across a row of uneven descriptions. */}
+        <div className="flex flex-wrap gap-1.5 mt-auto">
           {project.tags.map(tag => (
             <span key={tag} className="tag-chip">
               <Tag size={9} />
@@ -181,8 +205,12 @@ export default function ProjectCard({ project, delay = 0 }) {
         </div>
 
         {!isUpcoming && (
-          <div className="mt-4 text-xs font-medium" style={{ color: project.color }}>
-            Click for details →
+          <div
+            className="mt-4 pt-3 flex items-center gap-1.5 text-xs font-semibold"
+            style={{ color: project.color, borderTop: '1px solid var(--border)' }}
+          >
+            Read the full description
+            <ArrowUpRight size={13} />
           </div>
         )}
       </motion.div>
@@ -212,31 +240,30 @@ export default function ProjectCard({ project, delay = 0 }) {
             <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
             <motion.div
               ref={dialogRef}
-              // max-h-[80vh] left the dialog running under the mobile bottom
-              // nav on short phones; dvh tracks the real visible height and the
-              // extra headroom on small screens keeps the close button reachable.
-              className="glass-card relative w-full max-w-2xl max-h-[85dvh] overflow-y-auto overscroll-contain p-6 sm:p-8"
+              /*
+                max-h-[80vh] left the dialog running under the mobile bottom
+                nav on short phones; dvh tracks the real visible height.
+
+                The dialog is a flex column with a fixed header and a scrolling
+                body, rather than one scrolling box. When the whole thing
+                scrolled, the close button — absolutely positioned at top-right
+                — scrolled off with it, so on a long description the only ways
+                out were Escape or a backdrop click, neither of them signposted.
+              */
+              className="glass-card relative w-full max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden"
               initial={{ scale: 0.96, y: 16, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.96, y: 16, opacity: 0 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
               onClick={e => e.stopPropagation()}
               // Set again here: the modal is portaled to document.body, so it
               // is outside the card and cannot inherit the card's accent.
               style={{ border: `1px solid ${project.color}40`, '--tag-accent': project.color }}
             >
-              <button
-                className="absolute top-4 right-4 p-2 rounded-full"
-                style={{ background: 'var(--surface)', cursor: 'pointer' }}
-                onClick={() => setExpanded(false)}
-                aria-label="Close project details"
-              >
-                <X size={18} style={{ color: 'var(--text-secondary)' }} />
-              </button>
-
-              <div className="flex items-start gap-4 mb-6">
-                <div className="text-4xl">{project.icon}</div>
-                <div>
+              {/* Header — stays put while the description scrolls under it. */}
+              <div className="flex items-start gap-4 p-6 sm:p-8 pb-4 sm:pb-5 flex-shrink-0">
+                <div className="text-4xl leading-none flex-shrink-0">{project.icon}</div>
+                <div className="min-w-0 flex-1">
                   <h2 id={`project-title-${project.id}`} className="font-bold text-xl mb-1" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
                     {project.title}
                   </h2>
@@ -246,24 +273,39 @@ export default function ProjectCard({ project, delay = 0 }) {
                     {project.period}
                   </div>
                 </div>
+                <button
+                  className="p-2 rounded-full flex-shrink-0"
+                  style={{
+                    background: 'var(--surface-hover)',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setExpanded(false)}
+                  aria-label="Close project details"
+                >
+                  <X size={18} style={{ color: 'var(--text-secondary)' }} />
+                </button>
               </div>
 
-              <div 
-                className="h-px mb-6"
-                style={{ background: `linear-gradient(90deg, ${project.color}40, transparent)` }}
+              <div
+                className="h-px mx-6 sm:mx-8 flex-shrink-0"
+                style={{ background: `linear-gradient(90deg, ${project.color}66, transparent)` }}
               />
 
-              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
-                {project.fullDesc}
-              </p>
+              {/* Body — the only scrolling region. */}
+              <div className="overflow-y-auto overscroll-contain p-6 sm:p-8 pt-5">
+                <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
+                  {project.fullDesc}
+                </p>
 
-              <div className="flex flex-wrap gap-2">
-                {project.tags.map(tag => (
-                  <span key={tag} className="tag-chip">
-                    <Tag size={10} />
-                    {tag}
-                  </span>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                  {project.tags.map(tag => (
+                    <span key={tag} className="tag-chip">
+                      <Tag size={10} />
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </motion.div>
           </motion.div>

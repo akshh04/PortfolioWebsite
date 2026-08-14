@@ -9,6 +9,7 @@ import {
 import GradientOrb from '../components/ui/GradientOrb';
 import SkillChip from '../components/ui/SkillChip';
 import { skillCategories } from '../data/skills';
+import { EASE_OUT_EXPO, VIEWPORT } from '../lib/motion';
 
 /*
  * Explicit registry instead of `import * as LucideIcons`.
@@ -23,9 +24,6 @@ const iconRegistry = {
   Terminal, Database, Table, BarChart3, LineChart, Download,
   Search, PenLine, Presentation, Brain,
 };
-
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
-const VIEWPORT = { once: true, margin: '-80px' };
 
 export default function Skills() {
   return (
@@ -112,7 +110,7 @@ export default function Skills() {
         <motion.div
           initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={VIEWPORT}
           transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
           className="mt-20 text-center"
         >

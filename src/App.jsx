@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import ParticleBackground from './components/particles/ParticleBackground';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
@@ -48,6 +49,20 @@ function PageLoader() {
     </div>
   );
 }
+
+/*
+ * The five sections, in page order. Declared as data so App renders them in one
+ * loop — the previous hand-written list meant every change to the wrapper
+ * (Suspense, and now a boundary each) had to be repeated five times, and they
+ * had already drifted apart in their fallbacks.
+ */
+const SECTIONS = [
+  { id: 'home',     label: 'The introduction', Component: Home,     fallback: <PageLoader /> },
+  { id: 'about',    label: 'About',            Component: About,    fallback: null },
+  { id: 'skills',   label: 'Skills',           Component: Skills,   fallback: null },
+  { id: 'projects', label: 'Projects',         Component: Projects, fallback: null },
+  { id: 'contact',  label: 'The contact form', Component: Contact,  fallback: null },
+];
 
 // Minimum time (ms) the loading screen stays visible. Long enough that the
 // preloader reads as a deliberate intro rather than a flash of chrome, short
@@ -147,28 +162,40 @@ export default function App() {
         }}
       >
         <NoiseOverlay />
-        <ParticleBackground variant="calm" />
-        <Navbar />
+        {/*
+          Both of these are decoration and chrome. Neither is worth taking the
+          page down for, and neither is worth an error panel — a WebGL/canvas
+          failure in the particle field in particular should cost nothing more
+          than the particle field.
+        */}
+        <ErrorBoundary fallback={null}>
+          <ParticleBackground variant="calm" />
+        </ErrorBoundary>
+        <ErrorBoundary fallback={null}>
+          <Navbar />
+        </ErrorBoundary>
         
+        {/*
+          Each section carries its own boundary rather than one around <main>.
+          These are five independently code-split chunks: if the Contact chunk
+          fails to download, a single shared boundary would replace the entire
+          page — including the four sections that loaded perfectly — with one
+          error panel. Per-section, the damage stays in the section, and the
+          retry button re-attempts just that import.
+        */}
         <main>
-          <section id="home">
-            <Suspense fallback={<PageLoader />}><Home /></Suspense>
-          </section>
-          <section id="about">
-            <Suspense fallback={null}><About /></Suspense>
-          </section>
-          <section id="skills">
-            <Suspense fallback={null}><Skills /></Suspense>
-          </section>
-          <section id="projects">
-            <Suspense fallback={null}><Projects /></Suspense>
-          </section>
-          <section id="contact">
-            <Suspense fallback={null}><Contact /></Suspense>
-          </section>
+          {SECTIONS.map(({ id, label, Component, fallback }) => (
+            <section id={id} key={id}>
+              <ErrorBoundary label={label}>
+                <Suspense fallback={fallback}><Component /></Suspense>
+              </ErrorBoundary>
+            </section>
+          ))}
         </main>
 
-        <Footer />
+        <ErrorBoundary fallback={null}>
+          <Footer />
+        </ErrorBoundary>
       </div>
     </ThemeProvider>
   );

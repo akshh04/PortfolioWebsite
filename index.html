@@ -7,6 +7,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Akash Sankar — Astrophysics Researcher</title>
     <meta name="description" content="Portfolio of Akash Sankar Vigneshwaran — Astrophysics Researcher specializing in Dark Matter, Galaxy Dynamics, and Radio Astronomy Instrumentation." />
+
+    <!--
+      Tints the browser's own chrome to match the page. Without it, mobile
+      Chrome/Safari framed the dark theme in a light grey bar, which is the
+      first thing a visitor sees on a phone.
+
+      One tag rather than a media-scoped pair: the theme here is not simply the
+      OS preference — a stored explicit choice overrides it — and a media query
+      cannot see that. The inline script below sets it from the resolved theme,
+      and ThemeContext keeps it in step with the toggle.
+    -->
+    <meta name="theme-color" id="theme-color" content="#05060d" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- Link previews. Shared without these, the site unfurled as a bare URL. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Akash Sankar — Astrophysics Researcher" />
+    <meta property="og:description" content="Dark matter, galaxy rotation curves, and radio astronomy instrumentation — research, projects, and writing by Akash Sankar Vigneshwaran." />
+    <meta property="og:image" content="/logo-dark.jpg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Akash Sankar — Astrophysics Researcher" />
+    <meta name="twitter:description" content="Dark matter, galaxy rotation curves, and radio astronomy instrumentation." />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -17,14 +40,17 @@
           var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
             var root = document.documentElement;
             var fav = document.getElementById('favicon');
+            var themeColor = document.getElementById('theme-color');
             if (theme === 'light') {
               root.classList.add('light');
               root.classList.remove('dark');
               if (fav) fav.href = '/favicon-light.png';
+              if (themeColor) themeColor.setAttribute('content', '#f7f8fb');
             } else {
               root.classList.remove('light');
               root.classList.add('dark');
               if (fav) fav.href = '/favicon-dark.png';
+              if (themeColor) themeColor.setAttribute('content', '#05060d');
             }
           } catch(e) {}
       })();
@@ -273,7 +299,7 @@
 
           /* ─── Light Mode theme override for preloader ─── */
           html.light #preloader {
-            background: #fafafa;
+            background: #f7f8fb;
           }
           html.light .pl-star {
             background: #6d28d9;
@@ -298,7 +324,7 @@
           }
           /*
            * The dark-mode sun glow is tuned for a near-black backdrop.
-           * On #fafafa the same spread bleaches the whole centre of the
+           * On a near-white page the same spread bleaches the centre of the
            * screen, so light mode gets a tighter, deeper-toned glow.
            */
           html.light .pl-sun {
@@ -389,5 +415,55 @@
     <!-- React app root outside preloader -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <script>
+      /*
+       * Boot failsafe.
+       *
+       * App.jsx has a MAX_LOADER_DURATION that reveals the page even if a chunk
+       * never settles — but that timer lives *inside* React. If React itself
+       * never boots (the module fails to parse, the bundle 404s, the browser
+       * does not support ES modules, the network drops mid-download) nothing
+       * ever removes the preloader, and the visitor watches an orbit animation
+       * forever with no error and no way forward.
+       *
+       * This is plain inline script with no dependencies, so it runs in exactly
+       * the situations where everything else has failed.
+       */
+      (function () {
+        var BOOT_TIMEOUT = 12000;
+
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          var preloader = document.getElementById('preloader');
+
+          // React mounted — nothing to do. (It removes the preloader itself.)
+          if (!preloader || (root && root.childElementCount > 0)) return;
+
+          var title = preloader.querySelector('.pl-title');
+          var sub = preloader.querySelector('.pl-sub');
+          var track = preloader.querySelector('.pl-track');
+
+          if (title) title.textContent = 'Could not finish loading';
+          if (sub) {
+            sub.textContent = 'Check your connection and reload';
+            sub.style.letterSpacing = '0.1em';
+          }
+          if (track) track.style.display = 'none';
+
+          if (!document.getElementById('pl-reload')) {
+            var button = document.createElement('button');
+            button.id = 'pl-reload';
+            button.type = 'button';
+            button.textContent = 'Reload';
+            button.style.cssText =
+              'margin-top:22px;padding:0.6rem 1.6rem;border-radius:999px;border:1px solid rgba(124,58,237,0.6);' +
+              'background:transparent;color:inherit;font:inherit;font-size:0.8rem;letter-spacing:0.08em;cursor:pointer;';
+            button.onclick = function () { window.location.reload(); };
+            preloader.appendChild(button);
+          }
+        }, BOOT_TIMEOUT);
+      })();
+    </script>
   </body>
 </html>

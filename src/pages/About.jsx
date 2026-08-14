@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { MapPin, Mail, Telescope } from 'lucide-react';
+import { MapPin, Mail } from 'lucide-react';
 import GradientOrb from '../components/ui/GradientOrb';
 import Timeline from '../components/ui/Timeline';
 import { stats } from '../data/education';
 import { useTheme } from '../context/ThemeContext';
+import { EASE_OUT_EXPO, VIEWPORT } from '../lib/motion';
 
 // Ease-out cubic: the number sprints away from zero and settles onto the final
 // value, instead of the old linear ramp that just looked like a stopwatch.
@@ -73,14 +74,10 @@ function AnimatedCounter({ value, suffix, isDecimal, label, icon, delay = 0 }) {
  * seen. `whileInView` with `once` plays it at the moment it becomes visible,
  * which is both cheaper and the thing the animation was written for.
  */
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
-
 const sectionVariants = {
   hidden: { opacity: 0, y: 28 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_OUT_EXPO } },
 };
-
-const VIEWPORT = { once: true, margin: '-80px' };
 
 export default function About() {
   const { theme } = useTheme();
@@ -201,8 +198,8 @@ export default function About() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={{ 
+          viewport={VIEWPORT}
+          variants={{
             visible: { transition: { staggerChildren: 0.1 } }
           }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20"

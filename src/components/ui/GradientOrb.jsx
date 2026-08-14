@@ -40,12 +40,27 @@ export default function GradientOrb({
   const reducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
 
+  // An orb hidden at this breakpoint renders nothing, so there is no node to
+  // observe. Computed before the effect so the effect can depend on it.
+  const hidden = mobileHidden && isMobile;
+
   useEffect(() => {
+    /*
+     * `hidden` is in the dependency list, not just read inside the effect.
+     * With an empty list the effect ran once, on a mount where the orb was
+     * hidden and `ref.current` was therefore null — which took the
+     * "no observer support" branch and pinned inView to true. Widening the
+     * window past the breakpoint then rendered the orb permanently animating,
+     * with no observer ever attached to pause it off-screen. Re-running on the
+     * breakpoint attaches the observer the moment the node exists.
+     */
+    if (hidden) return undefined;
+
     const node = ref.current;
     if (!node || typeof IntersectionObserver === 'undefined') {
       // Without observer support, fall back to always-on rather than never-on.
       setInView(true);
-      return;
+      return undefined;
     }
     const observer = new IntersectionObserver(
       ([entry]) => setInView(entry.isIntersecting),
@@ -55,9 +70,9 @@ export default function GradientOrb({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [hidden]);
 
-  if (mobileHidden && isMobile) return null;
+  if (hidden) return null;
 
   const blur = Math.min(size * 0.2, MAX_BLUR);
 

@@ -7,12 +7,42 @@ import {
   Copy, Check
 } from 'lucide-react';
 import GradientOrb from '../components/ui/GradientOrb';
+import { onResumeRequest, requestResume } from '../lib/resume';
+import { EASE_OUT_EXPO, VIEWPORT, stagger, fadeUp } from '../lib/motion';
 
 // ─── EmailJS Configuration ─────────────────────────────────────────────────
 const EMAILJS_SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'portfolio.email';
 const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'autoreply-temp-portfolio';
 const EMAILJS_AUTO_REPLY_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_AUTO_REPLY_TEMPLATE_ID || 'user_temp_18';
 const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || ''; // Configured in .env (ignored from git)
+
+/*
+ * The public key is the one value with no usable default — the others fall back
+ * to the real IDs above, but without a key every send is rejected by EmailJS
+ * with an opaque error. A deploy that forgets the env var therefore produced a
+ * form that looked completely functional and silently failed for every visitor.
+ * Checking up front lets the form say so instead, and point at the address that
+ * does work.
+ */
+const EMAILJS_CONFIGURED = Boolean(EMAILJS_PUBLIC_KEY);
+
+const EMAIL_ADDRESS = 'akashsankar80@gmail.com';
+
+// Deliberately loose. Strict address grammar rejects valid addresses, and the
+// server validates anyway; this only catches the obvious typo — a missing @ or
+// domain — before the visitor waits on a round trip to be told.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function validate(form) {
+  const errors = {};
+  if (!form.name.trim()) errors.name = 'Please tell me your name.';
+  if (!form.email.trim()) errors.email = 'An email address is needed for me to reply.';
+  else if (!EMAIL_PATTERN.test(form.email.trim())) errors.email = 'That address does not look right.';
+  if (!form.subject.trim()) errors.subject = 'A short subject helps me prioritise.';
+  if (!form.message.trim()) errors.message = 'The message is empty.';
+  else if (form.message.trim().length < 10) errors.message = 'A little more detail, please.';
+  return errors;
+}
 
 const socials = [
   {
@@ -52,8 +82,45 @@ const inputStyles = {
   backdropFilter: 'blur(10px)',
 };
 
-const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', value, onChange, placeholder, required, autoComplete }, ref) => {
+const ERROR_COLOR = '#f87171';
+
+/*
+ * Shared chrome for both field types. The border and the icon shift colour on
+ * focus, and again on error — the two states are exclusive, with error winning,
+ * so a field the visitor is correcting still shows what is wrong with it.
+ */
+function fieldVisuals({ focused, invalid }) {
+  if (invalid) {
+    return {
+      borderColor: ERROR_COLOR,
+      boxShadow: focused ? `0 0 0 3px rgba(248,113,113,0.16)` : 'none',
+      iconColor: ERROR_COLOR,
+    };
+  }
+  return {
+    borderColor: focused ? 'var(--nebula-1)' : 'var(--border)',
+    boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
+    iconColor: focused ? 'var(--nebula-1)' : 'var(--text-secondary)',
+  };
+}
+
+function FieldError({ id, message }) {
+  if (!message) return null;
+  return (
+    // role="alert" so the message is announced when it appears, and the input
+    // points at it via aria-describedby so it is also reachable on focus.
+    <p id={id} role="alert" className="text-xs flex items-center gap-1.5" style={{ color: ERROR_COLOR }}>
+      <AlertCircle size={12} className="flex-shrink-0" />
+      {message}
+    </p>
+  );
+}
+
+const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', value, onChange, onBlur, placeholder, required, autoComplete, error }, ref) => {
   const [focused, setFocused] = useState(false);
+  const { borderColor, boxShadow, iconColor } = fieldVisuals({ focused, invalid: Boolean(error) });
+  const errorId = `${id}-error`;
+
   return (
     <div className="relative flex flex-col gap-1.5">
       <label htmlFor={id} className="text-xs font-semibold tracking-wide uppercase"
@@ -62,7 +129,7 @@ const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', valu
       </label>
       <div className="relative">
         <Icon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10"
-          style={{ color: focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
+          style={{ color: iconColor, transition: 'color 0.2s' }} />
         <input
           ref={ref}
           id={id}
@@ -72,23 +139,25 @@ const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', valu
           placeholder={placeholder}
           required={required}
           autoComplete={autoComplete}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? errorId : undefined}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={{
-            ...inputStyles,
-            borderColor: focused ? 'var(--nebula-1)' : 'var(--border)',
-            boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
-          }}
+          onBlur={(e) => { setFocused(false); onBlur?.(e); }}
+          style={{ ...inputStyles, borderColor, boxShadow }}
         />
       </div>
+      <FieldError id={errorId} message={error} />
     </div>
   );
 });
 
 FormField.displayName = 'FormField';
 
-function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, required }) {
+function TextareaField({ icon: Icon, label, id, value, onChange, onBlur, placeholder, required, error }) {
   const [focused, setFocused] = useState(false);
+  const { borderColor, boxShadow, iconColor } = fieldVisuals({ focused, invalid: Boolean(error) });
+  const errorId = `${id}-error`;
+
   return (
     <div className="relative flex flex-col gap-1.5">
       <label htmlFor={id} className="text-xs font-semibold tracking-wide uppercase"
@@ -97,7 +166,7 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
       </label>
       <div className="relative">
         <Icon size={18} className="absolute left-3.5 top-[1rem] pointer-events-none z-10"
-          style={{ color: focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
+          style={{ color: iconColor, transition: 'color 0.2s' }} />
         <textarea
           id={id}
           value={value}
@@ -105,30 +174,35 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
           placeholder={placeholder}
           required={required}
           rows={5}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? errorId : undefined}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={(e) => { setFocused(false); onBlur?.(e); }}
           style={{
             ...inputStyles,
             padding: '0.95rem 1rem 0.95rem 2.75rem',
             resize: 'vertical',
-            borderColor: focused ? 'var(--nebula-1)' : 'var(--border)',
-            boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
+            borderColor,
+            boxShadow,
           }}
         />
       </div>
+      <FieldError id={errorId} message={error} />
     </div>
   );
 }
 
 const initialForm = { name: '', email: '', subject: '', message: '' };
 
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
-const VIEWPORT = { once: true, margin: '-80px' };
-
 export default function Contact() {
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
   const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  // Which fields the visitor has finished with. Errors are only shown for
+  // these, so the form does not turn red while someone is still typing their
+  // name — but after a failed submit every field counts as touched.
+  const [touched, setTouched] = useState({});
   const [copied, setCopied] = useState(false);
   const nameInputRef = useRef(null);
   const resetTimerRef = useRef(null);
@@ -142,7 +216,7 @@ export default function Contact() {
    * cheerfully showed "Copied" for a copy that had not happened.
    */
   const handleCopyEmail = async () => {
-    const address = 'akashsankar80@gmail.com';
+    const address = EMAIL_ADDRESS;
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
       await navigator.clipboard.writeText(address);
@@ -156,23 +230,28 @@ export default function Contact() {
     }
   };
 
-  useEffect(() => {
-    const handleRequestResume = () => {
-      setForm(prev => ({
-        ...prev,
-        subject: "Resume Request",
-        message: "Hi Akash, I'd like to request a copy of your resume."
-      }));
-      if (nameInputRef.current) {
-        // preventScroll matters: the caller has already started a smooth
-        // scroll to this section, and a focus-driven scroll would cancel it
-        // and snap the page straight to the input instead.
-        nameInputRef.current.focus({ preventScroll: true });
-      }
-    };
-    window.addEventListener('requestResume', handleRequestResume);
-    return () => window.removeEventListener('requestResume', handleRequestResume);
-  }, []);
+  /*
+   * Subscribes through lib/resume rather than a raw window event listener.
+   * This component is lazy-loaded while the two buttons that fire the request
+   * (navbar, hero) are on screen from the first paint — so a request raised
+   * before this chunk mounted used to be dispatched into a void, scrolling the
+   * visitor to a form that had prefilled nothing. The channel replays it.
+   */
+  useEffect(() => onResumeRequest(() => {
+    setForm(prev => ({
+      ...prev,
+      subject: 'Resume Request',
+      message: "Hi Akash, I'd like to request a copy of your resume.",
+    }));
+    // Those two fields are now valid whatever they were before.
+    setFieldErrors(prev => ({ ...prev, subject: undefined, message: undefined }));
+    if (nameInputRef.current) {
+      // preventScroll matters: the caller has already started a smooth
+      // scroll to this section, and a focus-driven scroll would cancel it
+      // and snap the page straight to the input instead.
+      nameInputRef.current.focus({ preventScroll: true });
+    }
+  }), []);
 
   // Any pending timer must not fire after unmount.
   useEffect(() => () => {
@@ -186,11 +265,42 @@ export default function Contact() {
   };
 
   const handleChange = (field) => (e) => {
-    setForm(prev => ({ ...prev, [field]: e.target.value }));
+    const { value } = e.target;
+    setForm(prev => ({ ...prev, [field]: value }));
+    // Clear a field's error as soon as it is being corrected. Leaving it up
+    // while the visitor retypes makes the form feel like it is arguing.
+    setFieldErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
+
+  const handleBlur = (field) => () => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setFieldErrors(prev => ({ ...prev, [field]: validate(form)[field] }));
+  };
+
+  // Only surface an error for a field the visitor has left, or for every field
+  // once they have tried to submit.
+  const shownError = (field) => (touched[field] ? fieldErrors[field] : undefined);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const errors = validate(form);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setTouched({ name: true, email: true, subject: true, message: true });
+      // Put the cursor on the first thing that needs fixing rather than making
+      // the visitor hunt for the red field.
+      document.getElementById(Object.keys(errors)[0])?.focus();
+      return;
+    }
+
+    if (!EMAILJS_CONFIGURED) {
+      setStatus('error');
+      setErrorMsg(`The form is not configured on this deployment. Please email ${EMAIL_ADDRESS} directly.`);
+      scheduleStatusReset(8000);
+      return;
+    }
+
     setStatus('sending');
     setErrorMsg('');
 
@@ -204,7 +314,7 @@ export default function Contact() {
           from_email: form.email,
           subject:    form.subject,
           message:    form.message,
-          to_email:   'akashsankar80@gmail.com',
+          to_email:   EMAIL_ADDRESS,
           reply_to:   form.email,
         },
         EMAILJS_PUBLIC_KEY
@@ -222,7 +332,7 @@ export default function Contact() {
             to_name:    form.name,
             to_email:   form.email,
             user_email: form.email,
-            reply_to:   'akashsankar80@gmail.com',
+            reply_to:   EMAIL_ADDRESS,
           },
           EMAILJS_PUBLIC_KEY
         );
@@ -232,22 +342,18 @@ export default function Contact() {
 
       setStatus('success');
       setForm(initialForm);
+      setFieldErrors({});
+      setTouched({});
       scheduleStatusReset(6000);
     } catch (err) {
       console.error('EmailJS error:', err);
       setStatus('error');
-      setErrorMsg(err?.text || 'Something went wrong. Please email me directly.');
-      scheduleStatusReset(5000);
+      setErrorMsg(err?.text || `Something went wrong. Please email ${EMAIL_ADDRESS} directly.`);
+      scheduleStatusReset(8000);
     }
   };
 
-  const stagger = {
-    animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
-  };
-  const fadeUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT_EXPO } },
-  };
+  const headerStagger = stagger(0.07, 0.05);
 
   return (
     <div className="relative overflow-hidden">
@@ -260,7 +366,7 @@ export default function Contact() {
 
         {/* Header */}
         <motion.div
-          variants={stagger}
+          variants={headerStagger}
           initial="initial"
           whileInView="animate"
           viewport={VIEWPORT}
@@ -298,21 +404,31 @@ export default function Contact() {
                 </h2>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {/*
+                noValidate hands validation to `validate()` instead of the
+                browser. The native bubbles cannot be styled, vanish after a few
+                seconds, and only ever report the first invalid field — so a
+                form with three problems took three submits to discover them.
+              */}
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <FormField icon={User} label="Your Name" id="name" value={form.name} ref={nameInputRef}
-                    onChange={handleChange('name')} placeholder="Jane Smith" required autoComplete="name" />
+                    onChange={handleChange('name')} onBlur={handleBlur('name')} error={shownError('name')}
+                    placeholder="Jane Smith" required autoComplete="name" />
                   <FormField icon={AtSign} label="Email Address" id="email" type="email"
-                    value={form.email} onChange={handleChange('email')}
+                    value={form.email} onChange={handleChange('email')} onBlur={handleBlur('email')}
+                    error={shownError('email')}
                     placeholder="jane@example.com" required autoComplete="email" />
                 </div>
 
                 <FormField icon={Tag} label="Subject" id="subject" value={form.subject}
-                  onChange={handleChange('subject')}
+                  onChange={handleChange('subject')} onBlur={handleBlur('subject')}
+                  error={shownError('subject')}
                   placeholder="Research collaboration, internship, general query…" required />
 
                 <TextareaField icon={MessageSquare} label="Message" id="message"
-                  value={form.message} onChange={handleChange('message')}
+                  value={form.message} onChange={handleChange('message')} onBlur={handleBlur('message')}
+                  error={shownError('message')}
                   placeholder="Tell me about your project, opportunity, or question…" required />
 
                 {/* Status feedback */}
@@ -393,9 +509,10 @@ export default function Contact() {
               whileHover={{ scale: 1.01 }}
             >
               <a
-                href="mailto:akashsankar80@gmail.com"
-                className="absolute inset-0 rounded-2xl no-underline"
-                aria-label="Email akashsankar80@gmail.com — opens your mail client"
+                href={`mailto:${EMAIL_ADDRESS}`}
+                className="absolute inset-0 no-underline"
+                style={{ borderRadius: 'var(--r-lg)' }}
+                aria-label={`Email ${EMAIL_ADDRESS} — opens your mail client`}
               />
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
                 style={{ background: 'var(--gradient)' }}>
@@ -404,7 +521,7 @@ export default function Contact() {
               <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Email me directly</p>
               <div className="flex items-center justify-between gap-2">
                 <p className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
-                  akashsankar80@gmail.com
+                  {EMAIL_ADDRESS}
                 </p>
                 <button
                   type="button"
@@ -433,7 +550,7 @@ export default function Contact() {
                   )}
                 </button>
               </div>
-              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3)' }}>
+              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--eyebrow)' }}>
                 Open mail client <ExternalLink size={11} />
               </p>
             </motion.div>
@@ -447,7 +564,7 @@ export default function Contact() {
               type="button"
               className="glass-card p-6 cursor-pointer w-full text-left block"
               style={{ border: '1px solid rgba(37,99,235,0.15)' }}
-              onClick={() => window.dispatchEvent(new CustomEvent('requestResume'))}
+              onClick={() => requestResume()}
               whileHover={{ scale: 1.02, boxShadow: '0 16px 48px rgba(37,99,235,0.2)' }}
               whileTap={{ scale: 0.99 }}
             >

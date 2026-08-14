@@ -3,9 +3,10 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { ChevronDown, ArrowRight, FileText, Mail } from 'lucide-react';
 import GradientOrb from '../components/ui/GradientOrb';
 import { scrollToSection } from '../lib/scroll';
+import { requestResume } from '../lib/resume';
 import { stats } from '../data/education';
-import { useTheme } from '../context/ThemeContext';
-import { useReducedMotion, useIsMobile, isLowPowerDevice } from '../lib/device';
+import { useReducedMotion, useIsMobile, isLowPowerDevice, supportsWebGL } from '../lib/device';
+import { EASE_OUT_EXPO, stagger } from '../lib/motion';
 
 // Lazy so three.js stays off the initial/preloader critical path.
 const HeroCanvas = lazy(() => import('../components/three/HeroCanvas'));
@@ -42,9 +43,17 @@ function RoleCycler() {
   }, []);
 
   return (
-    // min-h rather than a fixed h-8: the longest role wraps to two lines at
-    // narrower desktop widths, and a hard height silently clipped the second.
-    <div className="relative min-h-[2rem] flex items-center">
+    /*
+     * min-h rather than a fixed height: the longest role wraps to two lines at
+     * narrower widths, and a hard height silently clipped the second.
+     *
+     * The mobile floor is two lines tall on purpose. The roles differ in
+     * length, so on a phone some wrap and some do not — with a one-line floor
+     * the block changed height every 3.6 seconds and shoved the CTA row and
+     * the stats strip down the page with it. Reserving both lines means the
+     * text swaps inside a box that never moves.
+     */
+    <div className="relative min-h-[2.9rem] md:min-h-[2rem] flex items-center">
       <AnimatePresence mode="wait">
         <motion.span
           key={index}
@@ -52,7 +61,7 @@ function RoleCycler() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -14 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="block w-full text-center md:text-left text-base md:text-lg font-medium"
+          className="block w-full text-center md:text-left text-[0.9375rem] md:text-lg font-medium leading-snug"
           style={{ color: 'var(--text-secondary)', fontFamily: 'Space Grotesk, sans-serif' }}
         >
           {roles[index]}
@@ -62,11 +71,7 @@ function RoleCycler() {
   );
 }
 
-const stagger = {
-  animate: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.12 },
-  },
-};
+const heroStagger = stagger(0.08, 0.12);
 
 /*
  * A 30px travel on a 0.6s linear-ish tween reads as "sliding into place".
@@ -74,15 +79,12 @@ const stagger = {
  * covers most of the distance immediately and decelerates, which is what makes
  * a staggered entrance feel smooth rather than sluggish.
  */
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
-
 const fadeUp = {
   initial: { opacity: 0, y: 18 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_OUT_EXPO } },
 };
 
 export default function Home() {
-  const { theme } = useTheme();
   const heroRef = useRef(null);
   const isInView = useInView(heroRef, { margin: '300px 0px' });
   const reducedMotion = useReducedMotion();
@@ -92,18 +94,25 @@ export default function Home() {
    * The WebGL scene is the single most expensive thing on the page. It buys a
    * decorative backdrop that is largely hidden behind the hero copy on a phone
    * anyway, so it is skipped where it would cost the most: narrow screens,
-   * low-core devices, and anyone who has asked for reduced motion. The check is
-   * memoised on `isMobile` so a desktop resize past the breakpoint re-evaluates
-   * but ordinary re-renders do not re-probe the hardware.
+   * anyone who has asked for reduced motion, genuinely tiny devices, and
+   * browsers with no hardware WebGL path.
+   *
+   * The last of those is a capability probe rather than a guess at the
+   * hardware from CPU specs — see the note on isLowPowerDevice(). Guessing
+   * misfired badly on privacy-hardened browsers, which understate core count
+   * by design and so lost the scene entirely on capable machines.
+   *
+   * Memoised on `isMobile` so a desktop resize past the breakpoint
+   * re-evaluates, but ordinary re-renders do not re-probe.
    */
   const showCanvas = useMemo(
-    () => !isMobile && !reducedMotion && !isLowPowerDevice(),
+    () => !isMobile && !reducedMotion && !isLowPowerDevice() && supportsWebGL(),
     [isMobile, reducedMotion]
   );
 
   const handleResumeRequest = () => {
     scrollToSection('contact');
-    window.dispatchEvent(new CustomEvent('requestResume'));
+    requestResume();
   };
 
   return (
@@ -140,14 +149,25 @@ export default function Home() {
       <div className="relative z-30 w-full max-w-7xl mx-auto px-6 pt-20 pb-28 md:pt-24 md:pb-12 min-h-[100dvh] flex flex-col justify-center">
         <motion.div
           className="max-w-2xl"
-          variants={stagger}
+          variants={heroStagger}
           initial="initial"
           animate="animate"
         >
           {/* Eyebrow */}
           <motion.div variants={fadeUp} className="flex items-center justify-center md:justify-start gap-3 mb-3 md:mb-4">
-            <span className="text-sm font-medium tracking-widest uppercase text-center md:text-left"
-              style={{ color: 'var(--nebula-3)', fontFamily: 'Space Grotesk, sans-serif' }}>
+            {/*
+              A short rule anchors the label, matching .section-eyebrow in the
+              sections below so the hero introduces the same header pattern the
+              rest of the page uses. Hidden on mobile, where the eyebrow is
+              centred and a single leading rule would look lopsided.
+            */}
+            <span
+              aria-hidden="true"
+              className="hidden md:block h-px w-7 flex-shrink-0"
+              style={{ background: 'var(--eyebrow)', opacity: 0.55 }}
+            />
+            <span className="text-sm font-semibold tracking-[0.18em] uppercase text-center md:text-left"
+              style={{ color: 'var(--eyebrow)', fontFamily: 'Space Grotesk, sans-serif' }}>
               Astrophysics Researcher
             </span>
           </motion.div>
@@ -155,16 +175,21 @@ export default function Home() {
           {/* Main headline */}
           <motion.h1
             variants={fadeUp}
-            className="text-5xl md:text-7xl font-extrabold leading-none mb-5 md:mb-4 text-center md:text-left"
-            style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+            className="hero-title mb-5 md:mb-4 text-center md:text-left"
           >
             <span className="gradient-text">Akash Sankar</span>
             <br />
             <span style={{ color: 'var(--text-primary)' }}>Vigneshwaran</span>
           </motion.h1>
 
-          {/* Role cycler — hidden on mobile */}
-          <motion.div variants={fadeUp} className="hidden md:block mb-6 md:mb-8">
+          {/*
+            Role cycler. This was `hidden md:block`, so the line that says what
+            the person actually does was absent on phones — the single largest
+            piece of context on the page, missing for most visitors. The reason
+            it was hidden was vertical space, which the tighter hero spacing
+            below now affords.
+          */}
+          <motion.div variants={fadeUp} className="mb-5 md:mb-8">
             <RoleCycler />
           </motion.div>
 
@@ -203,9 +228,17 @@ export default function Home() {
               Request Resume
             </motion.button>
 
+            {/*
+              Desktop only, and this one genuinely can be: the mobile bottom
+              nav carries a permanent Contact tab, so on a phone this button is
+              a third route to a destination already one tap away — while the
+              row it occupies is 56px of the only screen where vertical space
+              is contested. At 375x667 all three buttons stack, and that third
+              row pushed the stats strip down underneath the bottom nav.
+            */}
             <motion.button
               onClick={() => scrollToSection('contact')}
-              className="btn-ghost flex items-center gap-1.5 py-2.5 md:py-3"
+              className="btn-ghost hidden md:inline-flex items-center gap-1.5 py-2.5 md:py-3"
               style={{ cursor: 'pointer' }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
@@ -215,21 +248,30 @@ export default function Home() {
             </motion.button>
           </motion.div>
 
-          {/* Stats strip */}
+          {/*
+            Stats strip.
+
+            The mobile type and gaps are deliberately smaller than a simple
+            scale-down would suggest. This block sits at the bottom of a hero
+            that has to finish above a fixed bottom nav, and it is the last
+            thing in the column, so every pixel it spends comes out of the
+            clearance. Measured at 360x640 — the tightest common phone — the
+            previous sizing left exactly 0px between the last stat and the nav.
+          */}
           <motion.div
             variants={fadeUp}
-            className="grid grid-cols-2 md:flex md:flex-wrap gap-3 md:gap-8 mt-3 md:mt-14 pt-3 md:pt-8"
+            className="hero-stats grid grid-cols-2 md:flex md:flex-wrap gap-x-3 gap-y-2 md:gap-8 mt-3 md:mt-14 pt-3 md:pt-8"
             style={{ borderTop: '1px solid var(--border)' }}
           >
             {stats.map(({ value, suffix, label }) => (
               <div key={label} className="flex flex-col">
                 <span
-                  className="text-2xl md:text-3xl font-extrabold gradient-text tabular-nums"
+                  className="text-xl md:text-3xl font-extrabold gradient-text tabular-nums leading-tight"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >
                   {value}{suffix}
                 </span>
-                <span className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[11px] md:text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
                   {label}
                 </span>
               </div>

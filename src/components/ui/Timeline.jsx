@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { education } from '../../data/education';
+import { EASE_OUT_EXPO, VIEWPORT } from '../../lib/motion';
 
 function TimelineItem({ item, index, isLast }) {
   const isLeft = item.side === 'left';
@@ -13,8 +14,8 @@ function TimelineItem({ item, index, isLast }) {
       // as it slid in. ±32 stays inside the gutter.
       initial={{ opacity: 0, x: isLeft ? -32 : 32 }}
       whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.6, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      viewport={VIEWPORT}
+      transition={{ duration: 0.6, delay: index * 0.08, ease: EASE_OUT_EXPO }}
       whileHover={{ y: -4 }}
     >
       <div
@@ -76,7 +77,7 @@ function TimelineItem({ item, index, isLast }) {
             className="w-4 h-4 rounded-full border-2 flex-shrink-0"
             style={{
               background: item.color,
-              // border-white vanished against the light theme's #fafafa page;
+              // border-white vanished against the light theme's near-white page;
               // matching the page background keeps the ring visible in both.
               borderColor: 'var(--bg)',
               boxShadow: `0 0 16px ${item.color}80`,

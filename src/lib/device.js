@@ -51,17 +51,80 @@ export function useIsMobile() {
 }
 
 /**
- * True when the device is unlikely to sustain a 60 fps WebGL scene alongside
- * the rest of the page: few cores, or a low device-memory hint. Both APIs are
- * absent on Safari, where we optimistically assume the device copes.
+ * True when the device is unlikely to sustain a WebGL scene alongside the rest
+ * of the page.
+ *
+ * This used to read `navigator.hardwareConcurrency <= 4 || deviceMemory <= 4`.
+ * Both halves were wrong in ways that cost real visitors the hero:
+ *
+ *  - Privacy-hardened browsers deliberately understate these values. Brave's
+ *    fingerprinting protection farbles `hardwareConcurrency` down toward 2 and
+ *    suppresses `deviceMemory`, precisely so a site cannot profile the machine.
+ *    A 12-core desktop on Brave therefore reported "2 cores" and was classified
+ *    as low-power, so the 3-D hero silently never mounted — on hardware that
+ *    renders it at full frame rate. It is a privacy signal, not a capability
+ *    signal, and it cannot be read as one.
+ *  - `deviceMemory` is quantised and capped at 8 by spec, so anything under
+ *    roughly 6 GB reports exactly 4. The old `<= 4` test therefore excluded a
+ *    large band of perfectly capable laptops.
+ *
+ * Core count is gone entirely: there is no threshold that separates a weak CPU
+ * from a farbled one. `deviceMemory` survives only at `<= 2`, a value no
+ * current desktop or mid-range phone reports, so it now flags genuinely tiny
+ * devices and nothing else. Actual rendering capability is established by
+ * probing WebGL — see `supportsWebGL()`.
  */
 export function isLowPowerDevice() {
   if (typeof navigator === 'undefined') return false;
-  const cores = navigator.hardwareConcurrency;
   const memory = navigator.deviceMemory;
-  if (typeof cores === 'number' && cores > 0 && cores <= 4) return true;
-  if (typeof memory === 'number' && memory > 0 && memory <= 4) return true;
-  return false;
+  return typeof memory === 'number' && memory > 0 && memory <= 2;
+}
+
+/*
+ * Cached: creating a context allocates real GPU resources, and this is called
+ * from a render path. The answer cannot change during a page's lifetime.
+ */
+let webglSupport = null;
+
+/**
+ * Whether this browser can actually render a WebGL scene at a useful speed.
+ *
+ * Asking the GPU directly is the honest version of the question the CPU-spec
+ * heuristic above was trying to answer by proxy. A missing context means no
+ * hardware path at all; a software rasteriser means there is one, but it would
+ * run this scene at a few frames a second while pinning a core.
+ */
+export function supportsWebGL() {
+  if (webglSupport !== null) return webglSupport;
+  if (typeof document === 'undefined') return (webglSupport = false);
+
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    if (!gl) return (webglSupport = false);
+
+    /*
+     * WEBGL_debug_renderer_info is itself a fingerprinting surface, so the same
+     * browsers that farble core counts often withhold it. Absent means unknown,
+     * and unknown resolves to "yes" — refusing to render whenever we cannot
+     * identify the GPU would reintroduce the exact bug this replaces.
+     */
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const renderer = String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '');
+      if (/swiftshader|llvmpipe|softpipe|software/i.test(renderer)) {
+        return (webglSupport = false);
+      }
+    }
+
+    // Release the probe context rather than leaving it to the GC; browsers cap
+    // how many live WebGL contexts a page may hold, and the real hero canvas
+    // needs one of them.
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return (webglSupport = true);
+  } catch {
+    return (webglSupport = false);
+  }
 }
 
 /**

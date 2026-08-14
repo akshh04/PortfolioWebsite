@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon, FileText, Home, User, Star, Folder, Mail } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { scrollToSection } from '../../lib/scroll';
+import { requestResume } from '../../lib/resume';
 
 const navLinks = [
   { id: 'home', label: 'Home', icon: Home },
@@ -16,24 +17,53 @@ export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const progressRef = useRef(null);
 
   useEffect(() => {
     /*
-     * The scroll listener fires dozens of times a second but the value it
-     * derives is a single boolean that flips twice per page. Comparing against
-     * the last value keeps React out of the scroll path entirely except at the
-     * two moments the bar actually changes appearance.
+     * The scroll listener fires dozens of times a second. Two things are
+     * derived from it, and each is kept off React's critical path in its own
+     * way:
+     *
+     * - `scrolled` is a single boolean that flips twice per page, so it is
+     *   compared against the last value and only set at the two moments the
+     *   bar actually changes appearance.
+     * - the progress bar changes on *every* frame, so it is written straight
+     *   to a CSS custom property on the element. Routing it through state
+     *   would re-render the whole navbar sixty times a second to move one bar.
      */
     let lastScrolled = null;
-    const handleScroll = () => {
-      const next = window.scrollY > 20;
+    let frame = 0;
+
+    const applyScroll = () => {
+      frame = 0;
+      const y = window.scrollY;
+
+      const next = y > 20;
       if (next !== lastScrolled) {
         lastScrolled = next;
         setScrolled(next);
       }
+
+      const node = progressRef.current;
+      if (node) {
+        // Guard the divisor: on a page shorter than the viewport (or mid-layout
+        // during load) scrollable height is 0, and 0/0 writes NaN into the
+        // transform, which drops the bar entirely.
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const ratio = scrollable > 0 ? Math.min(Math.max(y / scrollable, 0), 1) : 0;
+        node.style.setProperty('--progress', ratio.toFixed(4));
+      }
     };
+
+    // Coalesce bursts of scroll events into one write per painted frame.
+    const handleScroll = () => {
+      if (!frame) frame = requestAnimationFrame(applyScroll);
+    };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
+    window.addEventListener('resize', handleScroll, { passive: true });
+    applyScroll();
 
     /*
      * Track every intersecting section rather than reacting to entries one at
@@ -65,13 +95,15 @@ export default function Navbar() {
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+      if (frame) cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, []);
 
   const handleResumeRequest = () => {
     scrollToSection('contact');
-    window.dispatchEvent(new CustomEvent('requestResume'));
+    requestResume();
   };
 
   return (
@@ -83,7 +115,7 @@ export default function Navbar() {
         transition={{ duration: 0.6, delay: 0.2 }}
         style={{
           background: scrolled
-            ? (theme === 'dark' ? 'rgba(5, 6, 13, 0.85)' : 'rgba(250, 250, 250, 0.85)')
+            ? (theme === 'dark' ? 'rgba(5, 6, 13, 0.82)' : 'rgba(247, 248, 251, 0.82)')
             : 'transparent',
           /*
            * Only blur once the bar actually has a surface to blur *into*. The
@@ -98,6 +130,20 @@ export default function Navbar() {
           transition: 'background-color 0.3s ease, border-color 0.3s ease',
         }}
       >
+        {/*
+          Reading progress. On a page that scrolls ~8000px with no route
+          changes, nothing told a visitor how much was left — this is the one
+          piece of orientation a single-page layout cannot get from its nav.
+          It only shows once the bar has a surface, so it does not float
+          unattached over the hero.
+        */}
+        <div
+          ref={progressRef}
+          className="scroll-progress"
+          aria-hidden="true"
+          style={{ opacity: scrolled ? undefined : 0, transition: 'opacity 0.3s ease' }}
+        />
+
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo */}
           <button 
@@ -214,11 +260,18 @@ export default function Navbar() {
         style={{ bottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}
       >
         <div
-          className="pointer-events-auto flex items-center justify-between px-3 py-2 rounded-2xl shadow-xl"
+          className="pointer-events-auto flex items-center justify-between px-2 py-1.5"
           style={{
-            background: theme === 'dark' ? 'rgba(5, 6, 13, 0.92)' : 'rgba(250, 250, 250, 0.92)',
+            background: theme === 'dark' ? 'rgba(5, 6, 13, 0.9)' : 'rgba(247, 248, 251, 0.9)',
             backdropFilter: 'blur(20px)',
+            // Safari — including every browser on iOS, which is the platform
+            // this bar exists for — still needs the prefix.
+            WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid var(--border)',
+            borderRadius: 'var(--r-xl)',
+            boxShadow: theme === 'dark'
+              ? '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.12)'
+              : '0 8px 28px rgba(23,31,56,0.14)',
           }}
         >
           {navLinks.map(({ id, label, icon: Icon }) => (
@@ -226,21 +279,16 @@ export default function Navbar() {
               key={id}
               onClick={() => scrollToSection(id)}
               /*
-               * The tap target used to be exactly as wide as the label — the
+               * Geometry and states live in .mobile-nav-item (index.css). The
+               * tap target used to be exactly as wide as the label — the
                * "Skills" button measured 25px across, so the gaps between items
-               * were dead space that swallowed near-misses. Padding plus a
-               * min-width gives each item a ~56px target without changing how
-               * the bar looks.
+               * were dead space that swallowed near-misses. The class gives
+               * each item a ~56px target, and the active one a tinted pill so
+               * the current position is not signalled by colour alone on a
+               * 10px label.
                */
-              className="flex flex-col items-center justify-center gap-1 min-w-[56px] py-1.5 rounded-xl transition-transform active:scale-95"
+              className={`mobile-nav-item ${activeSection === id ? 'active' : ''}`}
               aria-current={activeSection === id ? 'true' : undefined}
-              style={{
-                color: activeSection === id ? 'var(--nebula-1)' : 'var(--text-muted)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                WebkitTapHighlightColor: 'transparent',
-              }}
             >
               <Icon size={20} />
               <span className="text-[10px] font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>

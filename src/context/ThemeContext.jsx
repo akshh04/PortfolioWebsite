@@ -37,12 +37,27 @@ export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => readStoredTheme() || systemTheme());
 
   useEffect(() => {
+    const isLight = theme === 'light';
     const root = document.documentElement;
-    root.classList.toggle('light', theme === 'light');
-    root.classList.toggle('dark', theme !== 'light');
+    root.classList.toggle('light', isLight);
+    root.classList.toggle('dark', !isLight);
+
     const favicon = document.getElementById('favicon');
     if (favicon) {
-      favicon.href = theme === 'light' ? '/favicon-light.png' : '/favicon-dark.png';
+      favicon.href = isLight ? '/favicon-light.png' : '/favicon-dark.png';
+    }
+
+    /*
+     * Keeps the browser's own chrome in step with the toggle. index.html sets
+     * this on first paint from the stored/system theme; without this it then
+     * stayed on that first value forever, so switching to light left a phone
+     * showing a near-black status bar above a white page.
+     *
+     * The values must track --bg in index.css.
+     */
+    const themeColor = document.getElementById('theme-color');
+    if (themeColor) {
+      themeColor.setAttribute('content', isLight ? '#f7f8fb' : '#05060d');
     }
   }, [theme]);
 
