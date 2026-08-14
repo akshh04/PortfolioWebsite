@@ -4,6 +4,7 @@ import GradientOrb from '../components/ui/GradientOrb';
 import ProjectCard from '../components/ui/ProjectCard';
 import { scrollToSection } from '../lib/scroll';
 import { projects } from '../data/projects';
+import { EASE_OUT_EXPO, VIEWPORT } from '../lib/motion';
 
 export default function Projects() {
   return (
@@ -19,8 +20,8 @@ export default function Projects() {
         <motion.div
           initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.7, ease: EASE_OUT_EXPO }}
           className="text-center mb-16"
         >
           <p className="section-eyebrow">Research & Work</p>
@@ -42,13 +43,13 @@ export default function Projects() {
         <motion.div
           initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
           className="mt-20 text-center"
         >
-          <div 
+          <div
             className="glass-card inline-block p-8"
-            style={{ 
+            style={{
               border: '1px solid rgba(124,58,237,0.25)',
               background: 'linear-gradient(135deg, rgba(124,58,237,0.08), rgba(6,182,212,0.05))',
             }}
@@ -70,7 +71,7 @@ export default function Projects() {
               // a target tall enough to hit reliably on a touchscreen — it was
               // a 20px-high strip.
               className="inline-flex items-center gap-2 mt-3 py-2 px-1 text-sm font-medium"
-              style={{ color: 'var(--nebula-3)' }}
+              style={{ color: 'var(--eyebrow)' }}
             >
               Get in touch →
             </a>

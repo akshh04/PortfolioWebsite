@@ -6,7 +6,7 @@ import { useReducedMotion, useIsMobile } from '../../lib/device';
 
 /*
  * Particle colours are theme-dependent: the dark palette is white/pale-violet,
- * which is invisible against the #fafafa light background. Each variant
+ * which is invisible against the near-white light background. Each variant
  * therefore declares both palettes and the active theme picks one.
  */
 const palettes = {

@@ -4,48 +4,102 @@
 
 @layer base {
   :root {
-    /* Dark theme defaults */
+    /* ── Dark theme (default) ─────────────────────────────────────────── */
     --bg: #05060d;
     --bg-secondary: #0d0f1a;
-    --surface: rgba(255, 255, 255, 0.04);
-    --surface-hover: rgba(255, 255, 255, 0.08);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.2);
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-hover: rgba(255, 255, 255, 0.085);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-hover: rgba(255, 255, 255, 0.22);
     --text-primary: #f5f5f7;
     --text-secondary: #9ca3af;
-    --text-muted: #6b7280;
+    /*
+     * Was #6b7280, which measures 4.18:1 against #05060d — under the 4.5:1
+     * minimum, and it is the colour used for the *smallest* text on the site
+     * (10px mobile-nav labels, 12px stat captions, the footer). 6.55:1 here.
+     */
+    --text-muted: #8b93a3;
     --accent: #fbbf24;
     --accent-glow: rgba(251, 191, 36, 0.3);
     --nebula-1: #7c3aed;
     --nebula-2: #2563eb;
     --nebula-3: #06b6d4;
+    /*
+     * Text-safe cyan. --nebula-3 is a *decorative* colour: it is correct for
+     * borders, icon washes and gradients, but as 14px uppercase eyebrow text on
+     * the light theme it fell to 3.53:1. Keeping the two roles as separate
+     * tokens means fixing the text contrast cannot wash out the decoration.
+     */
+    --eyebrow: #22d3ee;
     --orb-1: rgba(124, 58, 237, 0.15);
     --orb-2: rgba(37, 99, 235, 0.12);
     --orb-3: rgba(6, 182, 212, 0.1);
-    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --gradient: linear-gradient(135deg, #7c3aed, #2563eb, #06b6d4);
+
+    /* ── Elevation ────────────────────────────────────────────────────────
+     * On a #05060d page a black drop shadow is the page colour, so the old
+     * `0 20px 60px rgba(0,0,0,0.4)` hover state was literally invisible —
+     * cards appeared to gain nothing on hover but a border. Dark mode lifts
+     * with a coloured glow instead, which is what actually reads as depth
+     * against a near-black backdrop. Light mode keeps true shadows.
+     */
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-card-hover: 0 18px 48px rgba(0, 0, 0, 0.55),
+                         0 0 0 1px rgba(124, 58, 237, 0.35),
+                         0 0 34px -6px rgba(124, 58, 237, 0.4);
+
+    /* ── Shape ───────────────────────────────────────────────────────────
+     * Radii were previously a mix of hard-coded 16px in CSS and Tailwind's
+     * rounded-xl / rounded-2xl in markup, so a chip inside a card inside a
+     * panel stepped 12 → 16 → 16 with no relationship between them. One scale
+     * keeps the corners of nested elements visually concentric.
+     */
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 22px;
+    --r-pill: 999px;
+
+    /* ── Motion ─────────────────────────────────────────────────────────── */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --t-fast: 0.18s;
+    --t-base: 0.3s;
+
+    --focus-ring: rgba(139, 92, 246, 0.9);
   }
 
   .light {
-    --bg: #fafafa;
-    --bg-secondary: #f0f0f5;
+    /*
+     * #fafafa is a flat, slightly clinical grey. A hair of blue in the
+     * background and in the neutrals ties the light theme to the same violet /
+     * cyan family the dark theme uses, so switching themes now reads as the
+     * same site under different light rather than two different palettes.
+     */
+    --bg: #f7f8fb;
+    --bg-secondary: #eef0f7;
     --surface: rgba(255, 255, 255, 0.8);
-    --surface-hover: rgba(255, 255, 255, 0.95);
-    --border: rgba(0, 0, 0, 0.08);
-    --border-hover: rgba(0, 0, 0, 0.2);
+    --surface-hover: rgba(255, 255, 255, 0.96);
+    --border: rgba(23, 31, 56, 0.1);
+    --border-hover: rgba(23, 31, 56, 0.22);
     --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #6b7280;
+    --text-secondary: #445061;
+    --text-muted: #5b6573;
     --accent: #d97706;
     --accent-glow: rgba(217, 119, 6, 0.2);
     --nebula-1: #6d28d9;
     --nebula-2: #1d4ed8;
     --nebula-3: #0891b2;
+    --eyebrow: #0e7490;
     --orb-1: rgba(109, 40, 217, 0.08);
     --orb-2: rgba(29, 78, 216, 0.07);
     --orb-3: rgba(8, 145, 178, 0.06);
-    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     --gradient: linear-gradient(135deg, #6d28d9, #1d4ed8, #0891b2);
+
+    --shadow-card: 0 4px 24px rgba(23, 31, 56, 0.07), 0 1px 4px rgba(23, 31, 56, 0.05);
+    --shadow-card-hover: 0 16px 44px rgba(109, 40, 217, 0.16),
+                         0 0 0 1px rgba(109, 40, 217, 0.18);
+
+    --focus-ring: rgba(109, 40, 217, 0.95);
   }
 
   * {
@@ -74,6 +128,18 @@
 
   body {
     background-color: var(--bg);
+    /*
+     * A single flat fill for 8000px of scroll reads as a slab. Two very wide,
+     * very low-opacity washes pinned to the viewport give the page a sense of
+     * depth behind the content without adding an element, a blur, or anything
+     * that has to be repainted while scrolling — `fixed` attachment means the
+     * gradient is part of the canvas, not a compositing layer.
+     */
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -10%, rgba(124, 58, 237, 0.13), transparent 60%),
+      radial-gradient(ellipse 100% 60% at 100% 100%, rgba(6, 182, 212, 0.08), transparent 65%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
     transition: background-color 0.4s ease, color 0.4s ease;
@@ -87,6 +153,13 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  .light body,
+  html.light body {
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -10%, rgba(109, 40, 217, 0.09), transparent 60%),
+      radial-gradient(ellipse 100% 60% at 100% 100%, rgba(8, 145, 178, 0.07), transparent 65%);
+  }
+
   /* Opts out of double-tap-to-zoom on controls, which is what makes mobile
      browsers hold a tap for ~300ms before dispatching the click. */
   button, a {
@@ -95,6 +168,12 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
+    /*
+     * Space Grotesk is drawn a little loose for display sizes. Pulling the
+     * tracking in slightly is what makes large headings look set rather than
+     * typed — the effect is strongest exactly where the type is biggest.
+     */
+    letter-spacing: -0.02em;
   }
 
   ::selection {
@@ -110,17 +189,29 @@
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--bg);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(124, 58, 237, 0.5);
-    border-radius: 3px;
+    background: rgba(124, 58, 237, 0.45);
+    border-radius: var(--r-pill);
+    /* Insets the thumb from the track edge so it reads as a floating pill
+       rather than a bar welded to the side of the window. */
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(124, 58, 237, 0.8);
+  @media (hover: hover) {
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(124, 58, 237, 0.85);
+      background-clip: content-box;
+    }
+  }
+  /* Firefox has no ::-webkit-scrollbar; this is its equivalent. */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124, 58, 237, 0.5) transparent;
   }
 }
 
@@ -138,15 +229,17 @@
   .glass-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: var(--card-shadow);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-card);
     /*
      * `transition: all` also animates layout properties, so any width/padding
      * change on the card — a tag chip wrapping, a description expanding — was
      * animated too, and the browser had to check every property on every
      * change. Only these three actually differ between rest and hover.
      */
-    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: background-color var(--t-base) ease,
+                border-color var(--t-base) ease,
+                box-shadow var(--t-base) ease;
   }
 
   /*
@@ -160,7 +253,7 @@
     .glass-card:hover {
       background: var(--surface-hover);
       border-color: var(--border-hover);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(124, 58, 237, 0.2);
+      box-shadow: var(--shadow-card-hover);
     }
   }
 
@@ -170,6 +263,14 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    /*
+     * A 135° gradient across a short word can land almost entirely inside one
+     * of its three stops, so "Akash" and "Sankar" were coming out different
+     * colours from each other. Widening the ramp keeps the full violet → cyan
+     * sweep visible whatever the width of the text it is clipped to.
+     */
+    background-size: 200% auto;
+    background-position: 0% center;
   }
 
   /* Squircle shape for logos & avatars */
@@ -180,18 +281,40 @@
     border-radius: 32% !important;
   }
 
-  /* Gradient button */
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+
+  /*
+   * Shared geometry. The three button styles previously each declared their own
+   * padding and their own font stack, and they had drifted: .btn-ghost sat at
+   * 1.25rem horizontal against 1.75rem on the other two, so a row of them was
+   * unevenly spaced. Height and type now come from one place.
+   */
+  .btn-primary,
+  .btn-outline,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--r-pill);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: transform var(--t-fast) ease,
+                background-color var(--t-base) ease,
+                border-color var(--t-base) ease,
+                box-shadow var(--t-base) ease,
+                color var(--t-base) ease;
+  }
+
   .btn-primary {
     background: var(--gradient);
     color: white;
-    padding: 0.75rem 1.75rem;
-    border-radius: 999px;
-    font-weight: 600;
-    font-family: 'Space Grotesk', sans-serif;
-    transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    white-space: nowrap;
+    /* Grounds the pill against the page so it reads as raised rather than
+       painted on — the gradient alone is flat at this size. */
+    box-shadow: 0 6px 20px -6px rgba(124, 58, 237, 0.65);
   }
 
   .btn-primary::before {
@@ -200,12 +323,15 @@
     inset: 0;
     background: linear-gradient(135deg, #9333ea, #3b82f6, #22d3ee);
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--t-base) ease;
   }
 
   @media (hover: hover) {
     .btn-primary:hover::before {
       opacity: 1;
+    }
+    .btn-primary:hover {
+      box-shadow: 0 10px 30px -6px rgba(124, 58, 237, 0.8);
     }
   }
 
@@ -218,13 +344,7 @@
   .btn-outline {
     background: transparent;
     color: var(--text-primary);
-    padding: 0.75rem 1.75rem;
-    border-radius: 999px;
-    font-weight: 600;
-    font-family: 'Space Grotesk', sans-serif;
     border: 1px solid var(--border-hover);
-    transition: all 0.3s ease;
-    white-space: nowrap;
   }
 
   @media (hover: hover) {
@@ -250,7 +370,10 @@
     background: rgba(255, 255, 255, 0.06);
     color: var(--text-primary);
     border: 1px solid var(--border);
-    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+    transition: background-color var(--t-base) ease,
+                border-color var(--t-base) ease,
+                box-shadow var(--t-base) ease,
+                color var(--t-base) ease;
   }
 
   @media (hover: hover) {
@@ -266,12 +389,7 @@
   .btn-ghost {
     background: transparent;
     color: var(--text-secondary);
-    padding: 0.75rem 1.25rem;
-    border-radius: 999px;
     font-weight: 500;
-    font-family: 'Space Grotesk', sans-serif;
-    transition: all 0.3s ease;
-    white-space: nowrap;
   }
 
   @media (hover: hover) {
@@ -293,21 +411,24 @@
   .gradient-border {
     position: relative;
     background: var(--surface);
-    border-radius: 16px;
+    border-radius: var(--r-lg);
   }
 
   .gradient-border::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 16px;
+    border-radius: var(--r-lg);
     padding: 1px;
     background: var(--gradient);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--t-base) ease;
+    /* The ring is decoration painted over the card; without this it sits above
+       the card's own content and swallows clicks near the edge. */
+    pointer-events: none;
   }
 
   @media (hover: hover) {
@@ -331,42 +452,109 @@
     width: 100%;
     margin-inline: auto;
     padding-inline: 1.5rem;
-    padding-top: 4rem;
-    padding-bottom: 3rem;
+    padding-top: 4.5rem;
+    padding-bottom: 3.5rem;
   }
 
   @media (min-width: 768px) {
     .section-shell {
-      padding-top: 6rem;
-      padding-bottom: 5rem;
+      padding-top: 7rem;
+      padding-bottom: 5.5rem;
     }
   }
 
-  /* Section headers */
+  /*
+   * Hairline between sections.
+   *
+   * All five sections share one continuous background, so where one ended and
+   * the next began was carried entirely by whitespace — on a long scroll the
+   * page read as one undifferentiated column. A rule that fades out at both
+   * ends separates them without drawing a hard line across the layout.
+   *
+   * Only .section-shell users get it, which is exactly the four sections below
+   * the hero — the hero must not have a line above it.
+   */
+  .section-shell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100%, 1100px);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border) 22%, var(--border) 78%, transparent);
+    pointer-events: none;
+  }
+
+  /* ── Section headers ─────────────────────────────────────────────────── */
+
   .section-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.875rem;
-    font-weight: 500;
-    letter-spacing: 0.15em;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--nebula-3);
-    margin-bottom: 0.75rem;
+    /* --eyebrow, not --nebula-3: see the token note above. */
+    color: var(--eyebrow);
+    margin-bottom: 0.85rem;
+  }
+
+  /* Small leading rule — gives the eyebrow something to sit against so it
+     reads as a label rather than stray small text above the heading. */
+  .section-eyebrow::before {
+    content: '';
+    width: 1.75rem;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.55;
+    flex-shrink: 0;
+  }
+
+  /* Centred headers get a matching rule on the trailing side. */
+  .text-center .section-eyebrow::after {
+    content: '';
+    width: 1.75rem;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.55;
+    flex-shrink: 0;
   }
 
   .section-title {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-size: clamp(2.1rem, 4.5vw + 0.5rem, 3.5rem);
     font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.1;
-    margin-bottom: 1.25rem;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.15rem;
+    /* Stops a two-word title breaking to leave one word stranded on line two. */
+    text-wrap: balance;
   }
 
   .section-subtitle {
-    font-size: 1.125rem;
+    font-size: 1.0625rem;
     color: var(--text-secondary);
-    max-width: 600px;
+    max-width: 620px;
     line-height: 1.7;
+    text-wrap: pretty;
+  }
+
+  /*
+   * Hero headline. Tailwind's `text-5xl md:text-7xl` steps 48px → 72px at
+   * exactly 768px, so the name jumped a full 24px the moment a window crossed
+   * the breakpoint and sat visibly undersized for the 640–767px range. A clamp
+   * scales it continuously instead.
+   */
+  .hero-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(2.75rem, 7vw + 0.5rem, 4.5rem);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
   }
 
   /*
@@ -390,7 +578,7 @@
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem 0.75rem;
-    border-radius: 999px;
+    border-radius: var(--r-pill);
     font-size: 0.75rem;
     font-weight: 500;
     white-space: nowrap;
@@ -436,11 +624,18 @@
     position: absolute;
     bottom: 2px;
     left: 0;
-    width: 0%;
+    width: 100%;
     height: 2px;
     background: var(--gradient);
     border-radius: 1px;
-    transition: width 0.3s ease;
+    /*
+     * Animating scaleX instead of width: width is a layout property, so the
+     * old version ran the layout stage on every frame of every nav hover.
+     * transform is composited.
+     */
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--t-base) var(--ease-out-expo);
   }
 
   .nav-link.active {
@@ -448,7 +643,7 @@
   }
 
   .nav-link.active::after {
-    width: 100%;
+    transform: scaleX(1);
   }
 
   @media (hover: hover) {
@@ -457,8 +652,61 @@
     }
 
     .nav-link:hover::after {
-      width: 100%;
+      transform: scaleX(1);
     }
+  }
+
+  /*
+   * Scroll progress bar, pinned to the bottom edge of the navbar.
+   * Width is driven by a --progress custom property set from JS.
+   */
+  .scroll-progress {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    width: 100%;
+    transform: scaleX(var(--progress, 0));
+    transform-origin: left center;
+    background: var(--gradient);
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
+  /* Mobile bottom-nav item */
+  .mobile-nav-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-width: 56px;
+    padding: 0.375rem 0.25rem;
+    border-radius: var(--r-md);
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color var(--t-base) ease, background-color var(--t-base) ease;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.95);
+  }
+
+  /*
+   * The active item was signalled by colour alone, on a 20px icon and a 10px
+   * label, in a row of five — the difference was easy to miss at a glance. A
+   * tinted pill behind the active item makes the current position readable
+   * without staring at it.
+   */
+  .mobile-nav-item.active {
+    color: var(--nebula-1);
+    /* Plain value first as the fallback for browsers without color-mix(). */
+    background: rgba(124, 58, 237, 0.14);
+    background: color-mix(in srgb, var(--nebula-1) 14%, transparent);
   }
 
   /* Timeline connector */
@@ -480,9 +728,9 @@
 
   /* Focus visible */
   :focus-visible {
-    outline: 2px solid rgba(124, 58, 237, 0.8);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 3px;
-    border-radius: 4px;
+    border-radius: var(--r-sm);
   }
 }
 
@@ -500,12 +748,12 @@
 }
 
 .light .hero-backdrop {
-  background: radial-gradient(ellipse 65% 85% at 28% 50%, rgba(250, 250, 250, 0.80) 20%, rgba(250, 250, 250, 0.30) 60%, transparent 85%);
+  background: radial-gradient(ellipse 65% 85% at 28% 50%, rgba(247, 248, 251, 0.82) 20%, rgba(247, 248, 251, 0.32) 60%, transparent 85%);
 }
 
 /* Light mode specific overrides */
 .light .btn-outline {
-  border-color: rgba(0, 0, 0, 0.2);
+  border-color: rgba(23, 31, 56, 0.2);
   color: var(--text-primary);
 }
 
@@ -515,25 +763,35 @@
 
 @media (hover: hover) {
   .light .btn-ghost:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(23, 31, 56, 0.05);
     color: var(--text-primary);
+  }
+}
+
+.light .btn-primary {
+  box-shadow: 0 6px 20px -8px rgba(109, 40, 217, 0.55);
+}
+
+@media (hover: hover) {
+  .light .btn-primary:hover {
+    box-shadow: 0 12px 28px -8px rgba(109, 40, 217, 0.65);
   }
 }
 
 /* Light mode glass cards — frosting is safe here, see the .glass-card note */
 .light .glass-card {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0,0,0,0.05);
-  border-color: rgba(0, 0, 0, 0.07);
+  box-shadow: var(--shadow-card);
+  border-color: rgba(23, 31, 56, 0.08);
 }
 
 @media (hover: hover) {
   .light .glass-card:hover {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 12px 40px rgba(109, 40, 217, 0.12), 0 0 0 1px rgba(109, 40, 217, 0.15);
-    border-color: rgba(109, 40, 217, 0.15);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgba(109, 40, 217, 0.18);
   }
 }
 
@@ -552,15 +810,43 @@
 
 /* Light mode glass buttons */
 .light .btn-glass {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(23, 31, 56, 0.1);
   color: var(--text-primary);
 }
 
 @media (hover: hover) {
   .light .btn-glass:hover {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.96);
     border-color: var(--nebula-1);
+  }
+}
+
+.light .scroll-progress {
+  opacity: 1;
+}
+
+/*
+ * Hero stats strip on short viewports.
+ *
+ * The mobile hero has to finish above a fixed bottom nav, and this block is the
+ * last thing in the column. On a short viewport there is simply not enough
+ * height for the name, the role, the buttons *and* four statistics — measured
+ * at 320x568, and in phone landscape, the bottom row of stats sat behind the
+ * nav bar.
+ *
+ * Hiding it there costs nothing: the same four figures appear as animated
+ * counter cards in the About section, roughly one screen further down. The
+ * threshold sits below every common portrait phone — the shortest in wide use
+ * is 640px tall, and that clears the nav with room to spare.
+ *
+ * Deliberately outside @layer components: the element also carries Tailwind's
+ * `grid` utility, and utilities are emitted after components at equal
+ * specificity, so a layered rule here would lose the display property.
+ */
+@media (max-width: 767px) and (max-height: 620px) {
+  .hero-stats {
+    display: none;
   }
 }
 
