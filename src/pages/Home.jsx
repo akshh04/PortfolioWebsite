@@ -5,7 +5,7 @@ import GradientOrb from '../components/ui/GradientOrb';
 import { scrollToSection } from '../lib/scroll';
 import { requestResume } from '../lib/resume';
 import { stats } from '../data/education';
-import { useReducedMotion, useIsMobile, isLowPowerDevice } from '../lib/device';
+import { useReducedMotion, useIsMobile, isLowPowerDevice, supportsWebGL } from '../lib/device';
 import { EASE_OUT_EXPO, stagger } from '../lib/motion';
 
 // Lazy so three.js stays off the initial/preloader critical path.
@@ -94,12 +94,19 @@ export default function Home() {
    * The WebGL scene is the single most expensive thing on the page. It buys a
    * decorative backdrop that is largely hidden behind the hero copy on a phone
    * anyway, so it is skipped where it would cost the most: narrow screens,
-   * low-core devices, and anyone who has asked for reduced motion. The check is
-   * memoised on `isMobile` so a desktop resize past the breakpoint re-evaluates
-   * but ordinary re-renders do not re-probe the hardware.
+   * anyone who has asked for reduced motion, genuinely tiny devices, and
+   * browsers with no hardware WebGL path.
+   *
+   * The last of those is a capability probe rather than a guess at the
+   * hardware from CPU specs — see the note on isLowPowerDevice(). Guessing
+   * misfired badly on privacy-hardened browsers, which understate core count
+   * by design and so lost the scene entirely on capable machines.
+   *
+   * Memoised on `isMobile` so a desktop resize past the breakpoint
+   * re-evaluates, but ordinary re-renders do not re-probe.
    */
   const showCanvas = useMemo(
-    () => !isMobile && !reducedMotion && !isLowPowerDevice(),
+    () => !isMobile && !reducedMotion && !isLowPowerDevice() && supportsWebGL(),
     [isMobile, reducedMotion]
   );
 
