@@ -51,17 +51,66 @@ export function useIsMobile() {
 }
 
 /**
- * True when the device is unlikely to sustain a 60 fps WebGL scene alongside
- * the rest of the page: few cores, or a low device-memory hint. Both APIs are
- * absent on Safari, where we optimistically assume the device copes.
+ * Whether the browser can render WebGL at all.
+ *
+ * This is the question the hero actually needs answered, and unlike the CPU
+ * hints below it cannot be spoofed into a wrong answer — either a context
+ * comes back or it does not. The probe context is released immediately;
+ * browsers cap the number of live WebGL contexts and leaking one here would
+ * count against the real canvas.
+ */
+let webglSupport = null;
+
+export function supportsWebGL() {
+  if (webglSupport !== null) return webglSupport;
+  if (typeof document === 'undefined') return false;
+
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl');
+    webglSupport = Boolean(gl);
+    // Hand the context back rather than waiting for GC.
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+  } catch {
+    webglSupport = false;
+  }
+
+  return webglSupport;
+}
+
+/**
+ * True when the device is unlikely to sustain a WebGL scene alongside the
+ * rest of the page.
+ *
+ * The thresholds here used to be `cores <= 4 || memory <= 4`, which quietly
+ * hid the hero scene in Brave: its fingerprinting protection is on by default
+ * and reports a capped, randomised `hardwareConcurrency` (commonly 2) plus a
+ * spoofed `deviceMemory`, regardless of the actual machine. The same laptop
+ * therefore showed the planet in Chrome and a bare gradient in Brave. Firefox
+ * with resistFingerprinting does the same thing, and Safari omits both APIs
+ * entirely.
+ *
+ * So these values are treated as a weak hint, not a verdict:
+ *   - the bar is dropped to 2, which no modern laptop reports honestly;
+ *   - and both signals must agree, so one spoofed reading cannot decide it.
+ * A device that really is this small is still caught, because a genuinely
+ * low-end phone reports low values for both — and phones are already excluded
+ * by the breakpoint check before this is ever consulted.
  */
 export function isLowPowerDevice() {
   if (typeof navigator === 'undefined') return false;
+
   const cores = navigator.hardwareConcurrency;
   const memory = navigator.deviceMemory;
-  if (typeof cores === 'number' && cores > 0 && cores <= 4) return true;
-  if (typeof memory === 'number' && memory > 0 && memory <= 4) return true;
-  return false;
+
+  const fewCores = typeof cores === 'number' && cores > 0 && cores <= 2;
+  const littleMemory = typeof memory === 'number' && memory > 0 && memory <= 2;
+
+  // Only when a browser reports both, and both are dire.
+  return fewCores && littleMemory;
 }
 
 /**

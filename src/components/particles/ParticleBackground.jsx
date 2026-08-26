@@ -10,10 +10,6 @@ import { useReducedMotion, useIsMobile } from '../../lib/device';
  * therefore declares both palettes and the active theme picks one.
  */
 const palettes = {
-  home: {
-    dark:  { particles: ['#ffffff', '#a78bfa', '#93c5fd', '#67e8f9'], links: '#7c3aed' },
-    light: { particles: ['#6d28d9', '#1d4ed8', '#0891b2', '#4b5563'], links: '#6d28d9' },
-  },
   calm: {
     dark:  { particles: ['#ffffff', '#c4b5fd', '#93c5fd'], links: '#93c5fd' },
     light: { particles: ['#6d28d9', '#1d4ed8', '#475569'], links: '#1d4ed8' },
@@ -21,14 +17,19 @@ const palettes = {
 };
 
 const shapes = {
-  home: {
-    number: { value: 65, density: { enable: true } },
-    size: { value: { min: 0.5, max: 2.5 } },
-    speed: 0.3,
-    linkDistance: 120,
-  },
   calm: {
-    number: { value: 35, density: { enable: true } },
+    /*
+     * `density: { enable: true }` used to sit here, and it was quietly
+     * gutting the field. Density rescales the count against a 1920x1080
+     * reference area, so the configured value was only ever reached on a
+     * full HD screen: a 1280x860 laptop got 18 of the 35 stars, and a
+     * 375x812 phone got 2 of its 18 — measured, not estimated. The field
+     * read as broken because there was almost nothing in it.
+     *
+     * The count is scaled for small screens explicitly in buildConfig
+     * below, so density was double-scaling something already handled.
+     */
+    number: { value: 35 },
     size: { value: { min: 0.3, max: 2 } },
     speed: 0.15,
     linkDistance: 120,
@@ -66,9 +67,61 @@ function buildConfig(variant, theme, { isMobile }) {
         ? { enable: false }
         : { enable: true, distance: shape.linkDistance, color: palette.links, opacity: linkOpacity, width: 1 },
     },
-    // No interactivity block: the canvas is a decorative backdrop rendered with
-    // pointer-events:none, so hover/click modes could never fire. Configuring
-    // them only made the engine track listeners it would never use.
+    /*
+     * Interactivity.
+     *
+     * The canvas is `position: fixed; inset: 0` at z-index 0 with
+     * `pointer-events: none`, so it can never steal a click from the page —
+     * which also meant it could never *see* one. Listening on the canvas was
+     * therefore dead configuration, and the field ignored the cursor
+     * completely.
+     *
+     * `detectsOn: 'window'` is what fixes that: the engine subscribes to the
+     * window's pointer events instead of the canvas's own, so the field
+     * reacts while every click still passes straight through to the button
+     * underneath it.
+     *
+     * Hover draws links from the cursor to nearby stars — the constellation
+     * gesture the rest of the site is built around. It is desktop-only
+     * because it is the expensive mode (a neighbour search plus a line draw
+     * per frame) and because a touchscreen has no hover to give it.
+     *
+     * Tap/click repulses instead of pushing: `push` spawns new particles and
+     * the count only ever climbs, so a visitor who taps twenty times is left
+     * with a heavier page than they started with. Repulse is a fixed cost.
+     */
+    interactivity: {
+      detectsOn: 'window',
+      events: {
+        onHover: { enable: !isMobile, mode: 'grab' },
+        onClick: { enable: true, mode: 'repulse' },
+        resize: { enable: true },
+      },
+      modes: {
+        grab: {
+          distance: 150,
+          links: { opacity: theme === 'light' ? 0.5 : 0.35, color: palette.links },
+        },
+        repulse: {
+          distance: isMobile ? 90 : 130,
+          duration: 0.5,
+          factor: 55,
+          speed: 0.7,
+          maxSpeed: 18,
+          easing: 'ease-out-quad',
+        },
+      },
+    },
+    /*
+     * Positioning lives here, not in a `style` prop on <Particles>.
+     * @tsparticles/react v3 does not accept `style`, so the object that used
+     * to be passed there — position, inset, z-index, pointer-events — was
+     * silently dropped and never reached the DOM (verified: the wrapper had
+     * no inline style at all). The layer only looked right because
+     * tsparticles' own fullScreen default happened to apply the same values.
+     * Stating it as an option makes the intent real rather than incidental.
+     */
+    fullScreen: { enable: true, zIndex: 0 },
     background: { color: 'transparent' },
     // Retina detection doubles the canvas pixel count for a field of 1–2px
     // dots that nobody inspects closely. Not worth 4x the fill rate on phones.
@@ -95,7 +148,7 @@ function ensureEngine() {
   return enginePromise;
 }
 
-export default function ParticleBackground({ variant = 'home' }) {
+export default function ParticleBackground({ variant = 'calm' }) {
   const [init, setInit] = useState(false);
   const { theme } = useTheme();
   const reducedMotion = useReducedMotion();
@@ -133,12 +186,6 @@ export default function ParticleBackground({ variant = 'home' }) {
       key={`${variant}-${theme}-${isMobile ? 'm' : 'd'}`}
       id={`tsparticles-${variant}`}
       options={config}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: 'none',
-      }}
     />
   );
 }

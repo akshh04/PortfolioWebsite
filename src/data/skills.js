@@ -39,4 +39,22 @@ export const skillCategories = [
       { name: 'Critical Analysis', icon: 'Brain', desc: 'Evaluating scientific claims' },
     ],
   },
+  {
+    id: 'languages',
+    title: 'Languages',
+    icon: 'Languages',
+    // amber-600, not amber-500: the category title is rendered in this colour
+    // directly, and #f59e0b measures ~2.2:1 on the light theme's background.
+    color: '#d97706',
+    /*
+     * `desc` carries the CEFR level rather than the name repeating it, so the
+     * chips read the same length as every other group's and the level is only
+     * shown once the group is expanded.
+     */
+    skills: [
+      { name: 'Tamil', icon: 'MessageCircle', desc: 'Mother tongue' },
+      { name: 'Telugu', icon: 'MessageCircle', desc: 'Mother tongue' },
+      { name: 'English', icon: 'MessageCircle', desc: 'B2 — independent user' },
+    ],
+  },
 ];

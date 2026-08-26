@@ -14,6 +14,16 @@ const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'autorep
 const EMAILJS_AUTO_REPLY_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_AUTO_REPLY_TEMPLATE_ID || 'user_temp_18';
 const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || ''; // Configured in .env (ignored from git)
 
+/*
+ * .env is gitignored, so a fresh clone builds a form that looks completely
+ * operational and fails only after the visitor has written their message —
+ * with EmailJS's own internal error text, which says nothing useful. Detect
+ * the missing key up front and route people to the address instead.
+ */
+const EMAILJS_CONFIGURED = Boolean(EMAILJS_PUBLIC_KEY);
+
+const OWNER_EMAIL = 'akashsankar80@gmail.com';
+
 const socials = [
   {
     icon: Linkedin,
@@ -46,14 +56,45 @@ const inputStyles = {
   padding: '0.85rem 1rem 0.85rem 2.75rem',
   color: 'var(--text-primary)',
   fontFamily: 'Inter, sans-serif',
-  fontSize: '0.95rem',
+  /*
+   * Through a custom property rather than a literal: iOS Safari zooms the
+   * whole page when a field smaller than 16px takes focus, and it does not
+   * zoom back out afterwards. These styles are applied inline, which no
+   * media query can override, so the breakpoint lives on the property.
+   * See --field-font-size in index.css.
+   */
+  fontSize: 'var(--field-font-size, 0.95rem)',
   outline: 'none',
   transition: 'border-color 0.25s, box-shadow 0.25s',
   backdropFilter: 'blur(10px)',
 };
 
-const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', value, onChange, placeholder, required, autoComplete }, ref) => {
+// An error's colour must not be the only thing marking it: FieldError pairs
+// the red with an icon and text, so it survives a monochrome or colour-blind
+// reading of the form.
+function FieldError({ id, message }) {
+  if (!message) return null;
+  return (
+    <p id={id} className="flex items-center gap-1.5 text-xs" style={{ color: '#f87171' }}>
+      <AlertCircle size={12} className="flex-shrink-0" aria-hidden="true" />
+      {message}
+    </p>
+  );
+}
+
+function fieldBorder(focused, invalid) {
+  if (invalid) return '#f87171';
+  return focused ? 'var(--nebula-1)' : 'var(--border)';
+}
+
+function fieldGlow(focused, invalid) {
+  if (invalid) return '0 0 0 3px rgba(248,113,113,0.14)';
+  return focused ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none';
+}
+
+const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', value, onChange, placeholder, required, autoComplete, error }, ref) => {
   const [focused, setFocused] = useState(false);
+  const errorId = `${id}-error`;
   return (
     <div className="relative flex flex-col gap-1.5">
       <label htmlFor={id} className="text-xs font-semibold tracking-wide uppercase"
@@ -62,7 +103,8 @@ const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', valu
       </label>
       <div className="relative">
         <Icon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10"
-          style={{ color: focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
+          aria-hidden="true"
+          style={{ color: error ? '#f87171' : focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
         <input
           ref={ref}
           id={id}
@@ -72,23 +114,27 @@ const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', valu
           placeholder={placeholder}
           required={required}
           autoComplete={autoComplete}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? errorId : undefined}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           style={{
             ...inputStyles,
-            borderColor: focused ? 'var(--nebula-1)' : 'var(--border)',
-            boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
+            borderColor: fieldBorder(focused, Boolean(error)),
+            boxShadow: fieldGlow(focused, Boolean(error)),
           }}
         />
       </div>
+      <FieldError id={errorId} message={error} />
     </div>
   );
 });
 
 FormField.displayName = 'FormField';
 
-function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, required }) {
+function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, required, error }) {
   const [focused, setFocused] = useState(false);
+  const errorId = `${id}-error`;
   return (
     <div className="relative flex flex-col gap-1.5">
       <label htmlFor={id} className="text-xs font-semibold tracking-wide uppercase"
@@ -97,7 +143,8 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
       </label>
       <div className="relative">
         <Icon size={18} className="absolute left-3.5 top-[1rem] pointer-events-none z-10"
-          style={{ color: focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
+          aria-hidden="true"
+          style={{ color: error ? '#f87171' : focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
         <textarea
           id={id}
           value={value}
@@ -105,22 +152,43 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
           placeholder={placeholder}
           required={required}
           rows={5}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? errorId : undefined}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           style={{
             ...inputStyles,
             padding: '0.95rem 1rem 0.95rem 2.75rem',
             resize: 'vertical',
-            borderColor: focused ? 'var(--nebula-1)' : 'var(--border)',
-            boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
+            borderColor: fieldBorder(focused, Boolean(error)),
+            boxShadow: fieldGlow(focused, Boolean(error)),
           }}
         />
       </div>
+      <FieldError id={errorId} message={error} />
     </div>
   );
 }
 
 const initialForm = { name: '', email: '', subject: '', message: '' };
+
+// Deliberately permissive — the job here is to catch a typo like "jane@"
+// before it costs a round trip, not to adjudicate RFC 5322.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/*
+ * `required` on an input is satisfied by a single space, so the form happily
+ * submitted a message consisting of whitespace and reported it as sent.
+ */
+function validate(form) {
+  const errors = {};
+  if (!form.name.trim()) errors.name = 'Please tell me your name.';
+  if (!form.email.trim()) errors.email = 'An email address is needed for a reply.';
+  else if (!EMAIL_PATTERN.test(form.email.trim())) errors.email = 'That address does not look right.';
+  if (!form.subject.trim()) errors.subject = 'A short subject helps me prioritise.';
+  if (form.message.trim().length < 10) errors.message = 'A little more detail, please — at least 10 characters.';
+  return errors;
+}
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
 const VIEWPORT = { once: true, margin: '-80px' };
@@ -129,6 +197,9 @@ export default function Contact() {
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
   const [errorMsg, setErrorMsg] = useState('');
+  // Populated only after a submit attempt: flagging an empty form red before
+  // anyone has typed is scolding, not helping.
+  const [fieldErrors, setFieldErrors] = useState({});
   const [copied, setCopied] = useState(false);
   const nameInputRef = useRef(null);
   const resetTimerRef = useRef(null);
@@ -142,7 +213,7 @@ export default function Contact() {
    * cheerfully showed "Copied" for a copy that had not happened.
    */
   const handleCopyEmail = async () => {
-    const address = 'akashsankar80@gmail.com';
+    const address = OWNER_EMAIL;
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
       await navigator.clipboard.writeText(address);
@@ -160,8 +231,10 @@ export default function Contact() {
     const handleRequestResume = () => {
       setForm(prev => ({
         ...prev,
-        subject: "Resume Request",
-        message: "Hi Akash, I'd like to request a copy of your resume."
+        // "Résumé" everywhere else on the site, including the buttons that
+        // trigger this — the prefill was the last place still saying "Resume".
+        subject: 'Résumé request',
+        message: "Hi Akash, I'd like to request a copy of your résumé."
       }));
       if (nameInputRef.current) {
         // preventScroll matters: the caller has already started a smooth
@@ -186,11 +259,34 @@ export default function Contact() {
   };
 
   const handleChange = (field) => (e) => {
-    setForm(prev => ({ ...prev, [field]: e.target.value }));
+    const { value } = e.target;
+    setForm(prev => ({ ...prev, [field]: value }));
+    // Clear a field's error as soon as it is being corrected, rather than
+    // leaving it red until the next submit.
+    setFieldErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const errors = validate(form);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      // Send focus to the first problem so a keyboard or screen-reader user
+      // is not left hunting for what went wrong.
+      const firstInvalid = ['name', 'email', 'subject', 'message'].find(k => errors[k]);
+      document.getElementById(firstInvalid)?.focus();
+      return;
+    }
+
+    if (!EMAILJS_CONFIGURED) {
+      setStatus('error');
+      setErrorMsg(`The form is not connected right now — please email ${OWNER_EMAIL} directly.`);
+      scheduleStatusReset(8000);
+      return;
+    }
+
+    setFieldErrors({});
     setStatus('sending');
     setErrorMsg('');
 
@@ -200,12 +296,12 @@ export default function Contact() {
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
         {
-          from_name:  form.name,
-          from_email: form.email,
-          subject:    form.subject,
-          message:    form.message,
-          to_email:   'akashsankar80@gmail.com',
-          reply_to:   form.email,
+          from_name:  form.name.trim(),
+          from_email: form.email.trim(),
+          subject:    form.subject.trim(),
+          message:    form.message.trim(),
+          to_email:   OWNER_EMAIL,
+          reply_to:   form.email.trim(),
         },
         EMAILJS_PUBLIC_KEY
       );
@@ -219,10 +315,10 @@ export default function Contact() {
           EMAILJS_SERVICE_ID,
           EMAILJS_AUTO_REPLY_TEMPLATE_ID,
           {
-            to_name:    form.name,
-            to_email:   form.email,
-            user_email: form.email,
-            reply_to:   'akashsankar80@gmail.com',
+            to_name:    form.name.trim(),
+            to_email:   form.email.trim(),
+            user_email: form.email.trim(),
+            reply_to:   OWNER_EMAIL,
           },
           EMAILJS_PUBLIC_KEY
         );
@@ -267,10 +363,11 @@ export default function Contact() {
           className="text-center mb-14"
         >
           <motion.p variants={fadeUp} className="section-eyebrow">Say hello</motion.p>
-          <motion.h1 variants={fadeUp} className="section-title">
-            Let's talk about{' '}
+          {/* h2, not h1 — one document, one h1 (the hero name). */}
+          <motion.h2 variants={fadeUp} className="section-title">
+            Let&apos;s talk about{' '}
             <span className="gradient-text">the universe</span>
-          </motion.h1>
+          </motion.h2>
           <motion.p variants={fadeUp} className="section-subtitle mx-auto">
             Whether you have a research opportunity, collaboration idea, or just want to geek out about dark matter — my inbox is always open.
           </motion.p>
@@ -293,29 +390,43 @@ export default function Contact() {
                   style={{ background: 'var(--gradient)' }}>
                   <Send size={16} className="text-white" />
                 </div>
-                <h2 className="font-bold text-lg" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
+                <h3 className="font-bold text-lg" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
                   Send a Message
-                </h2>
+                </h3>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {/*
+                noValidate hands validation to `validate()` above. Without it
+                the browser's own bubble fires first, in its own wording and
+                its own language, and our inline messages never appear.
+              */}
+              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <FormField icon={User} label="Your Name" id="name" value={form.name} ref={nameInputRef}
-                    onChange={handleChange('name')} placeholder="Jane Smith" required autoComplete="name" />
+                    onChange={handleChange('name')} placeholder="Jane Smith" required autoComplete="name"
+                    error={fieldErrors.name} />
                   <FormField icon={AtSign} label="Email Address" id="email" type="email"
                     value={form.email} onChange={handleChange('email')}
-                    placeholder="jane@example.com" required autoComplete="email" />
+                    placeholder="jane@example.com" required autoComplete="email"
+                    error={fieldErrors.email} />
                 </div>
 
                 <FormField icon={Tag} label="Subject" id="subject" value={form.subject}
                   onChange={handleChange('subject')}
-                  placeholder="Research collaboration, internship, general query…" required />
+                  placeholder="Research collaboration, internship, general query…" required
+                  error={fieldErrors.subject} />
 
                 <TextareaField icon={MessageSquare} label="Message" id="message"
                   value={form.message} onChange={handleChange('message')}
-                  placeholder="Tell me about your project, opportunity, or question…" required />
+                  placeholder="Tell me about your project, opportunity, or question…" required
+                  error={fieldErrors.message} />
 
-                {/* Status feedback */}
+                {/*
+                  Status feedback. role="status" so the outcome of a submit is
+                  announced — previously it was a purely visual change, which a
+                  screen-reader user had no way of noticing at all.
+                */}
+                <div role="status" aria-live="polite">
                 <AnimatePresence mode="wait">
                   {status === 'success' && (
                     <motion.div
@@ -346,6 +457,7 @@ export default function Contact() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </div>
 
                 <motion.button
                   type="submit"
@@ -409,7 +521,7 @@ export default function Contact() {
                 <button
                   type="button"
                   onClick={handleCopyEmail}
-                  className="relative z-10 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 flex-shrink-0"
+                  className="tap-target relative z-10 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 flex-shrink-0"
                   style={{
                     background: copied ? 'rgba(34, 197, 94, 0.15)' : 'var(--surface-hover)',
                     color: copied ? '#22c55e' : 'var(--text-secondary)',
@@ -433,7 +545,7 @@ export default function Contact() {
                   )}
                 </button>
               </div>
-              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3)' }}>
+              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3-text)' }}>
                 Open mail client <ExternalLink size={11} />
               </p>
             </motion.div>
@@ -448,6 +560,7 @@ export default function Contact() {
               className="glass-card p-6 cursor-pointer w-full text-left block"
               style={{ border: '1px solid rgba(37,99,235,0.15)' }}
               onClick={() => window.dispatchEvent(new CustomEvent('requestResume'))}
+              aria-label="Request résumé — fills in the contact form above"
               whileHover={{ scale: 1.02, boxShadow: '0 16px 48px rgba(37,99,235,0.2)' }}
               whileTap={{ scale: 0.99 }}
             >
@@ -481,7 +594,7 @@ export default function Contact() {
           variants={{ animate: { transition: { staggerChildren: 0.1 } } }}
         >
           <div className="text-center mb-8">
-            <p className="section-eyebrow">Find me online</p>
+            <h3 className="section-eyebrow">Find me online</h3>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
@@ -492,6 +605,7 @@ export default function Contact() {
                 target="_blank"
                 rel="noopener noreferrer"
                 variants={fadeUp}
+                aria-label={`${label} — ${desc}, opens in a new tab`}
                 className="glass-card gradient-border p-6 flex flex-col items-center gap-3 text-center no-underline"
                 whileHover={{
                   y: -8,
@@ -504,7 +618,7 @@ export default function Contact() {
                   style={{ background: `${color}18`, border: `1px solid ${color}35` }}
                   whileHover={{ rotate: 10, scale: 1.1 }}
                 >
-                  <Icon size={22} style={{ color }} />
+                  <Icon size={22} style={{ color }} aria-hidden="true" />
                 </motion.div>
                 <div>
                   <p className="font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>

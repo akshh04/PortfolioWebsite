@@ -3,12 +3,15 @@ import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import ParticleBackground from './components/particles/ParticleBackground';
+import { scrollToSection } from './lib/scroll';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
 const Skills = lazy(() => import('./pages/Skills'));
+const Experience = lazy(() => import('./pages/Experience'));
 const Projects = lazy(() => import('./pages/Projects'));
+const Certificates = lazy(() => import('./pages/Certificates'));
 const Contact = lazy(() => import('./pages/Contact'));
 
 // Noise overlay
@@ -86,7 +89,7 @@ function usePreloader() {
     };
 
     /*
-     * Only the Home chunk gates the reveal. Waiting on all five meant the
+     * Only the Home chunk gates the reveal. Waiting on all six meant the
      * visitor stared at the preloader while Contact's EmailJS bundle and
      * Skills' icon set downloaded — code that nothing on screen needed yet.
      * The rest are warmed during idle time below, so they are already in
@@ -97,7 +100,9 @@ function usePreloader() {
       Promise.allSettled([
         import('./pages/About'),
         import('./pages/Skills'),
+        import('./pages/Experience'),
         import('./pages/Projects'),
+        import('./pages/Certificates'),
         import('./pages/Contact'),
       ]);
 
@@ -146,24 +151,40 @@ export default function App() {
           pointerEvents: ready ? 'auto' : 'none',
         }}
       >
+        {/*
+          Skip link. The nav bar, the logo and the theme toggle sit ahead of
+          the content in tab order on every visit; without this a keyboard
+          user has to walk through all of them to reach the page itself.
+          It is off-screen until focused.
+        */}
+        <a href="#home" className="skip-link" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
+          Skip to content
+        </a>
+
         <NoiseOverlay />
         <ParticleBackground variant="calm" />
         <Navbar />
-        
-        <main>
-          <section id="home">
+
+        <main id="main-content">
+          <section id="home" aria-label="Introduction">
             <Suspense fallback={<PageLoader />}><Home /></Suspense>
           </section>
-          <section id="about">
+          <section id="about" aria-label="About">
             <Suspense fallback={null}><About /></Suspense>
           </section>
-          <section id="skills">
+          <section id="skills" aria-label="Skills">
             <Suspense fallback={null}><Skills /></Suspense>
           </section>
-          <section id="projects">
+          <section id="experience" aria-label="Work experience">
+            <Suspense fallback={null}><Experience /></Suspense>
+          </section>
+          <section id="projects" aria-label="Projects">
             <Suspense fallback={null}><Projects /></Suspense>
           </section>
-          <section id="contact">
+          <section id="certificates" aria-label="Certificates">
+            <Suspense fallback={null}><Certificates /></Suspense>
+          </section>
+          <section id="contact" aria-label="Contact">
             <Suspense fallback={null}><Contact /></Suspense>
           </section>
         </main>

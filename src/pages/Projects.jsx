@@ -23,20 +23,38 @@ export default function Projects() {
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="text-center mb-16"
         >
-          <p className="section-eyebrow">Research & Work</p>
-          <h1 className="section-title">My <span className="gradient-text">Projects</span></h1>
+          <p className="section-eyebrow">What I've produced</p>
+          {/* h2, not h1 — one document, one h1 (the hero name). */}
+          <h2 className="section-title">My <span className="gradient-text">Projects</span></h2>
           <p className="section-subtitle mx-auto">
-            A collection of research projects, literature reviews, and conference presentations. 
-            Click any card to read the full description.
+            Research projects, literature reviews, and presentations — the work itself.
+            The roles behind it live in{' '}
+            <a
+              href="#experience"
+              onClick={(e) => { e.preventDefault(); scrollToSection('experience'); }}
+              className="font-medium underline underline-offset-2"
+              style={{ color: 'var(--nebula-3-text)' }}
+            >
+              Work&nbsp;Experience
+            </a>. Click any card to read the full description.
           </p>
         </motion.div>
 
         {/* Projects grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/*
+          A list, semantically: sibling cards in a bare div announce as
+          unrelated regions, with no count and no position.
+        */}
+        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 list-none p-0 m-0">
           {projects.map((project, index) => (
-            <ProjectCard key={project.id} project={project} delay={index * 0.08} />
+            // No `display: contents` here — several browsers drop a
+            // contents-styled list item out of the accessibility tree
+            // entirely, which would undo the reason for the <ul>.
+            <li key={project.id} className="flex">
+              <ProjectCard project={project} delay={Math.min(index * 0.08, 0.24)} />
+            </li>
           ))}
-        </div>
+        </ul>
 
         {/* Call to collaborate */}
         <motion.div
@@ -66,11 +84,11 @@ export default function Projects() {
                 e.preventDefault();
                 scrollToSection('contact');
               }}
-              // py-2 px-1 keeps the link visually where it was while giving it
-              // a target tall enough to hit reliably on a touchscreen — it was
-              // a 20px-high strip.
-              className="inline-flex items-center gap-2 mt-3 py-2 px-1 text-sm font-medium"
-              style={{ color: 'var(--nebula-3)' }}
+              // The padding keeps the link visually where it was while giving
+              // it a target tall enough to hit reliably on a touchscreen — it
+              // was a 20px-high strip, then a 36px one.
+              className="tap-target inline-flex items-center gap-2 mt-3 py-2 px-1 text-sm font-medium"
+              style={{ color: 'var(--nebula-3-text)' }}
             >
               Get in touch →
             </a>

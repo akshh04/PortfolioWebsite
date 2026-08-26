@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { MapPin, Mail, Telescope } from 'lucide-react';
+import { MapPin, Mail, GraduationCap } from 'lucide-react';
 import GradientOrb from '../components/ui/GradientOrb';
 import Timeline from '../components/ui/Timeline';
-import { stats } from '../data/education';
+import { stats, memberships } from '../data/education';
 import { useTheme } from '../context/ThemeContext';
+import { useReducedMotion } from '../lib/device';
 
 // Ease-out cubic: the number sprints away from zero and settles onto the final
 // value, instead of the old linear ramp that just looked like a stopwatch.
@@ -13,10 +14,18 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 function AnimatedCounter({ value, suffix, isDecimal, label, icon, delay = 0 }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-50px' });
+  const reducedMotion = useReducedMotion();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     if (!inView) return undefined;
+
+    // Counting up *is* the animation here, so honouring the preference means
+    // showing the final figure rather than running the same climb faster.
+    if (reducedMotion) {
+      setCount(value);
+      return undefined;
+    }
 
     /*
      * setInterval at 30ms had two problems: it is not aligned to the display's
@@ -43,20 +52,20 @@ function AnimatedCounter({ value, suffix, isDecimal, label, icon, delay = 0 }) {
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [inView, value, isDecimal]);
+  }, [inView, value, isDecimal, reducedMotion]);
 
   return (
     <motion.div
       ref={ref}
-      className="glass-card gradient-border p-6 text-center"
-      initial={{ opacity: 0, scale: 0.9 }}
+      className="glass-card gradient-border p-5 sm:p-6 text-center"
+      initial={{ opacity: 0, scale: 0.94 }}
       whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.5, delay }}
       whileHover={{ y: -4, boxShadow: '0 16px 48px rgba(124,58,237,0.2)' }}
     >
-      <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-4xl font-extrabold tabular-nums gradient-text mb-1"
+      <div className="text-2xl sm:text-3xl mb-2" aria-hidden="true">{icon}</div>
+      <div className="text-3xl sm:text-4xl font-extrabold tabular-nums gradient-text mb-1"
         style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
         {count}{suffix}
       </div>
@@ -82,8 +91,15 @@ const sectionVariants = {
 
 const VIEWPORT = { once: true, margin: '-80px' };
 
+const contactFacts = [
+  { icon: MapPin, text: 'Bremen, Germany' },
+  { icon: GraduationCap, text: 'M.Sc. Astrophysics · University of Bremen' },
+  { icon: Mail, text: 'akashsankar80@gmail.com' },
+];
+
 export default function About() {
   const { theme } = useTheme();
+
   return (
     <div className="relative overflow-hidden">
 
@@ -103,14 +119,20 @@ export default function About() {
           className="text-center mb-16"
         >
           <p className="section-eyebrow">Get to know me</p>
-          <h1 className="section-title">About <span className="gradient-text">Me</span></h1>
+          {/*
+            h2, not h1. This is a single-page site: the hero name is the
+            document's one h1, and every section below it is a level down.
+            Five sibling h1 elements gave assistive tech five competing
+            document titles and left the page with no usable heading outline.
+          */}
+          <h2 className="section-title">About <span className="gradient-text">Me</span></h2>
           <p className="section-subtitle mx-auto">
-            A physics graduate with a passion for unravelling the mysteries of the cosmos.
+            An astrophysics postgraduate chasing the parts of the universe that refuse to add up.
           </p>
         </motion.div>
 
         {/* Bio section */}
-        <div className="grid lg:grid-cols-2 gap-12 items-center mb-20">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center mb-20">
           {/* Photo / Avatar */}
           <motion.div
             className="flex justify-center"
@@ -133,26 +155,27 @@ export default function About() {
                   borderRadius: '50%',
                   padding: '3px',
                 }}
+                aria-hidden="true"
               >
                 <div className="w-full h-full rounded-full" style={{ background: 'var(--bg)', borderRadius: '50%' }} />
               </motion.div>
 
               {/* Profile / Logo Avatar */}
-              <div 
-                className="relative w-56 h-56 rounded-full overflow-hidden flex items-center justify-center shadow-2xl"
+              <div
+                className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full overflow-hidden flex items-center justify-center shadow-2xl"
                 style={{
                   borderRadius: '50%',
                   border: '3px solid var(--border)',
                   zIndex: 1,
-                  boxShadow: theme === 'dark' 
-                    ? '0 0 40px rgba(124,58,237,0.4)' 
+                  boxShadow: theme === 'dark'
+                    ? '0 0 40px rgba(124,58,237,0.4)'
                     : '0 10px 30px rgba(0,0,0,0.15)',
                   background: theme === 'dark' ? '#05060d' : '#ffffff',
                 }}
               >
                 <img
                   src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.jpg'}
-                  alt="Akash Sankar Profile Logo"
+                  alt="Akash Sankar Vigneshwaran"
                   width={224}
                   height={224}
                   loading="lazy"
@@ -171,55 +194,109 @@ export default function About() {
             viewport={VIEWPORT}
             transition={{ duration: 0.7, delay: 0.1, ease: EASE_OUT_EXPO }}
           >
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
+            <h3 className="text-xl sm:text-2xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
               Exploring the cosmos, one equation at a time.
-            </h2>
+            </h3>
             <p className="text-base leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
-              Physics graduate specializing in observational and theoretical astrophysics, with hands-on experience in radio astronomy instrumentation and a sustained research focus on dark matter, cosmology, and galaxy dynamics. Contributed to the development of low-noise RF systems for a radio telescope array and conducted independent theoretical research on dark matter candidates and galaxy rotation curve anomalies. Proficient in Python, SQL, and astronomical data analysis pipelines.
+              Physics graduate, about to begin an M.Sc. in Astrophysics at the University of Bremen, with a research
+              focus on dark matter, cosmology, and galaxy dynamics. Contributed to the development of low-noise RF
+              systems for a radio telescope array and conducted independent theoretical work on dark matter candidates
+              and galaxy rotation curve anomalies. Presented "Exoplanets and the Search for Alien Life" at the 44th
+              Meeting of the Astronomical Society of India. Formally trained as a data analyst, and fluent in Python,
+              SQL, and astronomical data analysis pipelines.
             </p>
 
-            <div className="flex flex-col gap-3">
-              {[
-                { icon: MapPin, text: 'Tamil Nadu, India · Targeting Graduate Studies in Germany' },
-                { icon: Mail, text: 'akashsankar80@gmail.com' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-3">
-                  <div 
+            <ul className="flex flex-col gap-3 list-none p-0 m-0">
+              {contactFacts.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-3">
+                  <span
                     className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ background: 'rgba(124,58,237,0.15)' }}
+                    aria-hidden="true"
                   >
-                    <Icon size={15} style={{ color: 'var(--nebula-1)' }} />
-                  </div>
+                    <Icon size={15} style={{ color: 'var(--nebula-1-text)' }} />
+                  </span>
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{text}</span>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </motion.div>
         </div>
 
-        {/* Stats grid */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={{ 
-            visible: { transition: { staggerChildren: 0.1 } }
-          }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20"
-        >
+        {/*
+          Stats grid.
+
+          The wrapper previously declared `initial="hidden"` and a
+          `staggerChildren` transition, but the children set their own
+          `initial`/`whileInView` objects rather than naming variants — so they
+          never joined the variant tree and the stagger was inert. The explicit
+          per-child delay below is what was actually producing the cascade.
+        */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20">
           {stats.map((stat, i) => (
             <AnimatedCounter key={stat.label} {...stat} delay={i * 0.1} />
           ))}
-        </motion.div>
+        </div>
 
         {/* Education timeline */}
-        <div>
+        <section aria-labelledby="education-heading">
           <div className="text-center mb-12">
             <p className="section-eyebrow">Academic Journey</p>
-            <h2 className="section-title">Education <span className="gradient-text">Timeline</span></h2>
+            <h3 id="education-heading" className="subsection-title">
+              Education <span className="gradient-text">Timeline</span>
+            </h3>
           </div>
           <Timeline />
-        </div>
+        </section>
+
+        {/*
+          Networks and memberships.
+
+          Below the timeline rather than inside it: a club membership is not a
+          qualification, and the CV keeps the two apart for the same reason.
+        */}
+        <section aria-labelledby="memberships-heading" className="mt-20">
+          <div className="text-center mb-10">
+            <p className="section-eyebrow">Where I orbit</p>
+            <h3 id="memberships-heading" className="subsection-title">
+              Networks <span className="gradient-text">&amp; Memberships</span>
+            </h3>
+          </div>
+
+          <ul className="grid gap-5 sm:grid-cols-2 list-none p-0 m-0 items-stretch">
+            {memberships.map((group, index) => (
+              <li key={group.id} className="flex">
+                <motion.article
+                  className="glass-card gradient-border p-5 sm:p-6 w-full flex flex-col"
+                  style={{ '--item-accent': group.color }}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.55, delay: index * 0.08, ease: EASE_OUT_EXPO }}
+                  whileHover={{ y: -4 }}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <span className="text-2xl leading-none flex-shrink-0" aria-hidden="true">{group.icon}</span>
+                    <div className="min-w-0">
+                      <h4
+                        className="font-bold text-base leading-tight"
+                        style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}
+                      >
+                        {group.name}
+                      </h4>
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                        {group.location} · {group.period}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs leading-relaxed mt-auto" style={{ color: 'var(--text-secondary)' }}>
+                    {group.description}
+                  </p>
+                </motion.article>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </div>
   );
