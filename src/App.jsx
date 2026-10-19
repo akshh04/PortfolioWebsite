@@ -1,197 +1,97 @@
-import React, { lazy, Suspense, useState, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
-import ParticleBackground from './components/particles/ParticleBackground';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+import Home from './pages/Home';
+import About from './pages/About';
+import Skills from './pages/Skills';
+import Experience from './pages/Experience';
+import Projects from './pages/Projects';
+import Contact from './pages/Contact';
 import { scrollToSection } from './lib/scroll';
+import { useReducedMotion, useSystemReducedMotion } from './lib/device';
 
-// Lazy-loaded pages
-const Home = lazy(() => import('./pages/Home'));
-const About = lazy(() => import('./pages/About'));
-const Skills = lazy(() => import('./pages/Skills'));
-const Experience = lazy(() => import('./pages/Experience'));
-const Projects = lazy(() => import('./pages/Projects'));
-const Certificates = lazy(() => import('./pages/Certificates'));
-const Contact = lazy(() => import('./pages/Contact'));
+// Content is available immediately; only optional decoration loads separately.
+const ParticleBackground = lazy(() => import('./components/particles/ParticleBackground'));
+const sections = [
+  ['home', 'Introduction', Home], ['projects', 'Research', Projects], ['about', 'About', About],
+  ['experience', 'Work experience', Experience], ['skills', 'Skills', Skills],
+  ['contact', 'Contact', Contact],
+];
 
-// Noise overlay
-function NoiseOverlay() {
-  return <div className="noise-overlay" aria-hidden="true" />;
-}
-
-// Loading fallback with Astrophysics theme
-function PageLoader() {
-  return (
-    <div 
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: 'var(--bg)' }}
-    >
-      <div className="flex flex-col items-center gap-5">
-        <div className="relative w-16 h-16 flex items-center justify-center">
-          {/* Pulsing central star */}
-          <div 
-            className="w-4 h-4 rounded-full animate-pulse"
-            style={{ 
-              background: 'radial-gradient(circle, #fbbf24, #d97706)',
-              boxShadow: '0 0 16px 4px rgba(251, 191, 36, 0.4)'
-            }} 
-          />
-          {/* Spinning orbit ring */}
-          <div 
-            className="absolute inset-0 rounded-full border border-purple-500/30 animate-spin"
-            style={{ animationDuration: '3s' }}
-          >
-            <div className="absolute top-0 left-1/2 -mt-1 -ml-1 w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_#a78bfa]" />
-          </div>
-        </div>
-        <span className="text-sm tracking-widest uppercase" style={{ color: 'var(--text-muted)', fontFamily: 'Space Grotesk, sans-serif' }}>
-          Mapping the Cosmos...
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// Minimum time (ms) the loading screen stays visible. Long enough that the
-// preloader reads as a deliberate intro rather than a flash of chrome, short
-// enough that it never becomes the thing keeping a visitor waiting — on a warm
-// cache the chunks are ready well before this elapses, so this figure *is* the
-// time-to-content.
-const MIN_LOADER_DURATION = 900;
-// Hard cap: a hung/never-settling import must never trap a visitor on the
-// preloader. Past this point we reveal the app regardless of chunk state —
-// Suspense still covers anything that genuinely hasn't arrived.
-const MAX_LOADER_DURATION = 6000;
-
-function dismissPreloader() {
-  const preloader = document.getElementById('preloader');
-  if (!preloader || preloader.classList.contains('pl-exit')) return;
-  // Trigger CSS fade-out, then remove after the animation completes.
-  // A timer is reliable here; animationend fires for every child animation
-  // (stars, orbits, progress bar) and would remove the node far too early.
-  preloader.classList.add('pl-exit');
-  setTimeout(() => preloader.remove(), 700);
-}
-
-function usePreloader() {
-  const [ready, setReady] = useState(false);
-
+export default function App() {
+  const reducedMotion = useReducedMotion();
+  const systemReducedMotion = useSystemReducedMotion();
+  useEffect(() => { document.documentElement.dataset.motionPaused = String(reducedMotion); }, [reducedMotion]);
   useEffect(() => {
-    const startTime = Date.now();
     let cancelled = false;
-    let revealTimer;
-
-    const reveal = () => {
-      if (cancelled) return;
-      cancelled = true;
-      dismissPreloader();
-      setReady(true);
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    const followHash = () => {
+      const id = window.location.hash.slice(1) || 'home';
+      if (id.startsWith('project/')) return;
+      scrollToSection(id, { history: false, behavior: 'instant' });
     };
-
-    /*
-     * Only the Home chunk gates the reveal. Waiting on all six meant the
-     * visitor stared at the preloader while Contact's EmailJS bundle and
-     * Skills' icon set downloaded — code that nothing on screen needed yet.
-     * The rest are warmed during idle time below, so they are already in
-     * memory by the time a scroll reaches them, and Suspense covers the case
-     * where a very fast scroll outruns the prefetch.
-     */
-    const belowTheFold = () =>
-      Promise.allSettled([
-        import('./pages/About'),
-        import('./pages/Skills'),
-        import('./pages/Experience'),
-        import('./pages/Projects'),
-        import('./pages/Certificates'),
-        import('./pages/Contact'),
-      ]);
-
-    // A failed chunk must not wedge the loader — allSettled never rejects.
-    Promise.allSettled([import('./pages/Home')]).then(() => {
-      if (cancelled) return;
-      const remaining = Math.max(0, MIN_LOADER_DURATION - (Date.now() - startTime));
-      revealTimer = setTimeout(reveal, remaining);
+    let frame = requestAnimationFrame(followHash);
+    let previousHash = window.location.hash;
+    const scheduleHash = () => {
+      // Let overlays release their scroll locks and inert state first.
+      cancelAnimationFrame(frame);
+      const returningFromProject = previousHash.startsWith('#project/');
+      previousHash = window.location.hash;
+      frame = requestAnimationFrame(() => {
+        // Closing an opened case study already restores its card's focus and
+        // original scroll position. Don't jump back to the section heading.
+        if (returningFromProject && window.location.hash === '#projects' && document.activeElement?.matches('.project-open')) return;
+        followHash();
+      });
+    };
+    // Font metrics can change the height of every preceding section on a
+    // cold load. Re-align once fonts settle, unless the visitor has interacted.
+    let interacted = false;
+    const markInteraction = () => { interacted = true; };
+    const events = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+    events.forEach(event => window.addEventListener(event, markInteraction, { passive: true }));
+    document.fonts?.ready.then(() => {
+      if (!cancelled && !interacted) followHash();
     });
-
-    // requestIdleCallback keeps the prefetch off the critical path; Safari
-    // lacks it, where a short timer is close enough.
-    const idle = window.requestIdleCallback
-      ? window.requestIdleCallback(belowTheFold, { timeout: 2500 })
-      : setTimeout(belowTheFold, 600);
-
-    const failsafeTimer = setTimeout(reveal, MAX_LOADER_DURATION);
-
+    window.addEventListener('hashchange', scheduleHash);
     return () => {
       cancelled = true;
-      clearTimeout(revealTimer);
-      clearTimeout(failsafeTimer);
-      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
-      else clearTimeout(idle);
+      cancelAnimationFrame(frame);
+      window.history.scrollRestoration = previousRestoration;
+      events.forEach(event => window.removeEventListener(event, markInteraction));
+      window.removeEventListener('hashchange', scheduleHash);
     };
   }, []);
 
-  return ready;
-}
-
-export default function App() {
-  const ready = usePreloader();
-
   return (
     <ThemeProvider>
-      <div
-        aria-busy={!ready}
-        style={{
-          minHeight: '100vh',
-          background: 'var(--bg)',
-          position: 'relative',
-          opacity: ready ? 1 : 0,
-          transition: 'opacity 0.5s ease 0.1s',
-          // While invisible the app is still in the DOM: without this a
-          // keyboard user can tab into controls they cannot see.
-          pointerEvents: ready ? 'auto' : 'none',
-        }}
-      >
-        {/*
-          Skip link. The nav bar, the logo and the theme toggle sit ahead of
-          the content in tab order on every visit; without this a keyboard
-          user has to walk through all of them to reach the page itself.
-          It is off-screen until focused.
-        */}
-        <a href="#home" className="skip-link" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
-          Skip to content
-        </a>
-
-        <NoiseOverlay />
-        <ParticleBackground variant="calm" />
-        <Navbar />
-
-        <main id="main-content">
-          <section id="home" aria-label="Introduction">
-            <Suspense fallback={<PageLoader />}><Home /></Suspense>
-          </section>
-          <section id="about" aria-label="About">
-            <Suspense fallback={null}><About /></Suspense>
-          </section>
-          <section id="skills" aria-label="Skills">
-            <Suspense fallback={null}><Skills /></Suspense>
-          </section>
-          <section id="experience" aria-label="Work experience">
-            <Suspense fallback={null}><Experience /></Suspense>
-          </section>
-          <section id="projects" aria-label="Projects">
-            <Suspense fallback={null}><Projects /></Suspense>
-          </section>
-          <section id="certificates" aria-label="Certificates">
-            <Suspense fallback={null}><Certificates /></Suspense>
-          </section>
-          <section id="contact" aria-label="Contact">
-            <Suspense fallback={null}><Contact /></Suspense>
-          </section>
-        </main>
-
-        <Footer />
-      </div>
+      <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
+        <ErrorBoundary>
+          <div className={`site-shell${reducedMotion ? ' motion-paused' : ''}`}>
+            <a href="#main-content" className="skip-link" onClick={(e) => {
+              e.preventDefault();
+              scrollToSection('main-content', { history: false });
+            }}>Skip to content</a>
+            <div className="noise-overlay" aria-hidden="true" />
+            {!systemReducedMotion && <ErrorBoundary decorative>
+              <Suspense fallback={null}><ParticleBackground /></Suspense>
+            </ErrorBoundary>}
+            <Navbar />
+            <main id="main-content" tabIndex={-1}>
+              {sections.map(([id, label, Component]) => (
+                <section key={id} id={id} aria-label={label} tabIndex={-1}>
+                  <Component />
+                </section>
+              ))}
+            </main>
+            <Footer />
+          </div>
+        </ErrorBoundary>
+      </MotionConfig>
     </ThemeProvider>
   );
 }
-

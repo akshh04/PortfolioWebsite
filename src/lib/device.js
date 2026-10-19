@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useMotionPaused } from './motionPreference.js';
 
 /*
  * Device / preference probes.
@@ -41,8 +42,14 @@ export function useMediaQuery(query) {
   return value;
 }
 
-export function useReducedMotion() {
+export function useSystemReducedMotion() {
   return useMediaQuery(REDUCED_MOTION_QUERY);
+}
+
+export function useReducedMotion() {
+  const systemReduced = useSystemReducedMotion();
+  const paused = useMotionPaused();
+  return systemReduced || paused;
 }
 
 /** Tailwind's `md` breakpoint, so JS gating matches the CSS gating. */
@@ -67,10 +74,8 @@ export function supportsWebGL() {
 
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl');
+    // Three r168 requires WebGL 2. A WebGL 1 context cannot render this scene.
+    const gl = canvas.getContext('webgl2');
     webglSupport = Boolean(gl);
     // Hand the context back rather than waiting for GC.
     gl?.getExtension('WEBGL_lose_context')?.loseContext();

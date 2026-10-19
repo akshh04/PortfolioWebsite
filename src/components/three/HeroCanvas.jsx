@@ -45,7 +45,7 @@ export default function HeroCanvas({ active }) {
       }}
       style={{ background: 'transparent' }}
     >
-      <HeroScene />
+      <HeroScene running={running} />
     </Canvas>
   );
 }

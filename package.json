@@ -3,9 +3,17 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.13.6"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:cv": "node scripts/build-public-cv.mjs",
+    "test": "node --test tests/*.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -14,20 +22,21 @@
     "@react-three/fiber": "^8.17.10",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.7.1",
-    "autoprefixer": "^10.4.20",
     "firebase": "^12.16.0",
     "framer-motion": "^11.5.4",
     "lucide-react": "^0.441.0",
-    "postcss": "^8.4.47",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwindcss": "^3.4.12",
     "three": "^0.168.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^18.3.9",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.8"
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^4.3.3",
+    "vite": "^7.3.7"
   }
 }

@@ -32,6 +32,7 @@ skills-lock.json
 # API keys, tokens, and environment files
 .env
 .env.*
+!.env.example
 *.env
 *.env.*
 
@@ -85,3 +86,25 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Local review files and generated working documents
+artifacts/
+output/
+tmp/
+FIREBASE-AI-SETUP.md
+REVIEW.md
+.codex/
+.aws/
+
+# Private credentials and signing keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*service-account*.json
+*serviceAccount*.json
+credentials.json
+
+# Keep the empty configuration template downloadable.
+!.env.example

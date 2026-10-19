@@ -14,13 +14,12 @@ export default function Footer() {
   return (
     // The 8rem floor was clearance for the old fixed bottom nav; with that
     // gone, only the device's own safe-area inset still needs respecting.
-    <footer className="relative z-10 pt-12 pb-[max(3rem,env(safe-area-inset-bottom,2rem))] md:pb-12 px-6"
-      style={{ borderTop: '1px solid var(--border)' }}>
+    <footer className="relative z-10 pt-12 pb-[max(3rem,env(safe-area-inset-bottom,2rem))] md:pb-12 px-6">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         {/* Branding */}
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div 
-            className="w-12 h-12 squircle overflow-hidden flex-shrink-0"
+            className="w-12 h-12 squircle overflow-hidden shrink-0"
             style={{
               borderRadius: '30%',
               boxShadow: theme === 'dark'
@@ -48,7 +47,7 @@ export default function Footer() {
               Akash Sankar Vigneshwaran
             </span>
             <span className="text-xs text-center md:text-left" style={{ color: 'var(--text-muted)' }}>
-              M.Sc. Astrophysics, University of Bremen · Astrophysics | Data | Discovery
+              M.Sc. Physics, University of Bremen · Astrophysics | Data | Discovery
             </span>
           </div>
         </div>

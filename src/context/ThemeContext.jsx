@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useMediaQuery } from '../lib/device';
+import { normalizeThemePreference, resolveTheme } from '../lib/themePreference';
 
 const ThemeContext = createContext();
 
@@ -10,9 +12,9 @@ const LIGHT_QUERY = '(prefers-color-scheme: light)';
 function readStoredTheme() {
   try {
     const stored = localStorage.getItem('theme');
-    return stored === 'light' || stored === 'dark' ? stored : null;
+    return normalizeThemePreference(stored);
   } catch {
-    return null;
+    return 'dark';
   }
 }
 
@@ -24,51 +26,34 @@ function writeStoredTheme(theme) {
   }
 }
 
-function systemTheme() {
-  return window.matchMedia && window.matchMedia(LIGHT_QUERY).matches ? 'light' : 'dark';
-}
-
 export function ThemeProvider({ children }) {
-  // Whether the visitor has made an explicit choice. Only an explicit choice is
-  // persisted — the previous version wrote to storage on mount, which froze
-  // whatever the OS preference happened to be on first visit and meant later
-  // OS changes were ignored forever.
-  const hasExplicitChoice = useRef(readStoredTheme() !== null);
-  const [theme, setTheme] = useState(() => readStoredTheme() || systemTheme());
+  // Keep the selected preference separate from the resolved palette so System
+  // can follow device appearance again after an explicit light/dark choice.
+  const [preference, setStoredPreference] = useState(readStoredTheme);
+  const systemLight = useMediaQuery(LIGHT_QUERY);
+  const theme = resolveTheme(preference, systemLight);
+  const setPreference = value => {
+    const next = normalizeThemePreference(value);
+    setStoredPreference(next);
+    writeStoredTheme(next);
+  };
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('light', theme === 'light');
     root.classList.toggle('dark', theme !== 'light');
+    root.style.colorScheme = theme;
+    document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
+      meta.content = theme === 'light' ? '#fafafa' : '#05060d';
+    });
     const favicon = document.getElementById('favicon');
     if (favicon) {
       favicon.href = theme === 'light' ? '/favicon-light.png' : '/favicon-dark.png';
     }
   }, [theme]);
 
-  // Follow the OS while the visitor hasn't picked a theme themselves.
-  useEffect(() => {
-    if (!window.matchMedia) return;
-    const media = window.matchMedia(LIGHT_QUERY);
-    const handleChange = (e) => {
-      if (hasExplicitChoice.current) return;
-      setTheme(e.matches ? 'light' : 'dark');
-    };
-    media.addEventListener('change', handleChange);
-    return () => media.removeEventListener('change', handleChange);
-  }, []);
-
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'dark' ? 'light' : 'dark';
-      hasExplicitChoice.current = true;
-      writeStoredTheme(next);
-      return next;
-    });
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, preference, setPreference }}>
       {children}
     </ThemeContext.Provider>
   );

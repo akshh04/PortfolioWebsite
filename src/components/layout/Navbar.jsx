@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon, FileText, Home, User, Star, Briefcase, Award, Folder, Mail, Menu, X } from 'lucide-react';
+import { FileText, User, Briefcase, Sparkles, Folder, Mail, Menu, X, Pause, Play } from 'lucide-react';
+import { useMotionPaused, toggleMotion } from '../../lib/motionPreference';
 import { useTheme } from '../../context/ThemeContext';
+import ThemePicker from '../ui/ThemePicker';
+import AssistantLauncher from '../ui/AssistantLauncher';
 import { scrollToSection } from '../../lib/scroll';
 
 /*
@@ -10,79 +13,59 @@ import { scrollToSection } from '../../lib/scroll';
  * sections appear in App.jsx.
  */
 const navLinks = [
-  { id: 'home', label: 'Home', icon: Home },
+  { id: 'projects', label: 'Research', icon: Folder },
   { id: 'about', label: 'About', icon: User },
-  { id: 'skills', label: 'Skills', icon: Star },
   { id: 'experience', label: 'Experience', icon: Briefcase },
-  { id: 'projects', label: 'Projects', icon: Folder },
-  { id: 'certificates', label: 'Certificates', icon: Award },
+  { id: 'skills', label: 'Skills', icon: Sparkles },
   { id: 'contact', label: 'Contact', icon: Mail },
 ];
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
 
 export default function Navbar() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
+  const motionPaused = useMotionPaused();
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [menuOpen, setMenuOpen] = useState(false);
 
   const menuRef = useRef(null);
+  const navRef = useRef(null);
   const toggleRef = useRef(null);
   const hasOpened = useRef(false);
 
   useEffect(() => {
-    /*
-     * The scroll listener fires dozens of times a second but the value it
-     * derives is a single boolean that flips twice per page. Comparing against
-     * the last value keeps React out of the scroll path entirely except at the
-     * two moments the bar actually changes appearance.
-     */
-    let lastScrolled = null;
-    const handleScroll = () => {
-      const next = window.scrollY > 20;
-      if (next !== lastScrolled) {
-        lastScrolled = next;
-        setScrolled(next);
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      setScrolled(window.scrollY > 20);
+      // A pixel marker works in portrait and landscape. Percentage root
+      // margins are based on viewport width and can collapse a wide observer.
+      const marker = 76 + Math.min(window.innerHeight * 0.2, 160);
+      let current = 'home';
+      for (const link of navLinks) {
+        const section = document.getElementById(link.id);
+        if (section && section.getBoundingClientRect().top <= marker) current = link.id;
       }
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) current = 'contact';
+      setActiveSection(current);
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    /*
-     * Track every intersecting section rather than reacting to entries one at
-     * a time. The previous version applied each entry in callback order, so
-     * whichever section happened to be reported last won — which regularly
-     * highlighted the wrong link when two sections were in view together, or
-     * when scrolling up (entries that stopped intersecting were never undone).
-     * Now the topmost visible section always wins.
-     */
-    const visible = new Set();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) visible.add(entry.target.id);
-          else visible.delete(entry.target.id);
-        });
-
-        const topmost = navLinks.find((link) => visible.has(link.id));
-        if (topmost) setActiveSection(topmost.id);
-      },
-      { rootMargin: '-30% 0px -60% 0px' }
-    );
-
-    navLinks.forEach((link) => {
-      const section = document.getElementById(link.id);
-      if (section) observer.observe(section);
-    });
-
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    const observer = new ResizeObserver(schedule);
+    const main = document.getElementById('main-content');
+    if (main) observer.observe(main);
+    update();
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
       observer.disconnect();
     };
   }, []);
-
   /*
    * Menu behaviour: Escape closes, Tab is trapped inside the panel, and the
    * page behind is frozen so it cannot scroll away under an open menu.
@@ -97,21 +80,27 @@ export default function Navbar() {
       }
       if (e.key !== 'Tab' || !menuRef.current) return;
 
-      const focusable = menuRef.current.querySelectorAll(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
+      const focusable = [...navRef.current.querySelectorAll(
+        'a[href], button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )].filter(node => node.getClientRects().length > 0);
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      const outside = !focusable.includes(document.activeElement);
+      if (e.shiftKey && (document.activeElement === first || outside)) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && (document.activeElement === last || outside)) {
         e.preventDefault();
         first.focus();
       }
     };
     window.addEventListener('keydown', onKeyDown);
+    const closeForNavigation = () => {
+      hasOpened.current = false;
+      setMenuOpen(false);
+    };
+    window.addEventListener('hashchange', closeForNavigation);
 
     // Same approach as the project modal: <html> owns the viewport scrollbar
     // here (index.css sets overflow-x on it), and `scrollbar-gutter: stable`
@@ -119,10 +108,15 @@ export default function Navbar() {
     const root = document.documentElement;
     const previousOverflow = root.style.overflow;
     root.style.overflow = 'hidden';
+    const background = [...document.querySelectorAll('main, footer')];
+    const previousInert = background.map(node => node.inert);
+    background.forEach(node => { node.inert = true; });
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('hashchange', closeForNavigation);
       root.style.overflow = previousOverflow;
+      background.forEach((node, index) => { node.inert = previousInert[index]; });
     };
   }, [menuOpen]);
 
@@ -141,9 +135,16 @@ export default function Navbar() {
   // would otherwise leave the panel mounted and the page scroll-locked.
   useEffect(() => {
     if (!window.matchMedia) return undefined;
-    const desktop = window.matchMedia('(min-width: 768px)');
+    const desktop = window.matchMedia('(min-width: 1024px)');
     const onChange = (e) => {
-      if (e.matches) setMenuOpen(false);
+      if (e.matches) {
+        hasOpened.current = false;
+        setMenuOpen(false);
+        // The hamburger is now hidden; keep focus on a visible control.
+        if (navRef.current?.contains(document.activeElement)) {
+          navRef.current.querySelector('button')?.focus();
+        }
+      }
     };
     desktop.addEventListener('change', onChange);
     return () => desktop.removeEventListener('change', onChange);
@@ -151,13 +152,15 @@ export default function Navbar() {
 
   const go = (id) => {
     setMenuOpen(false);
-    scrollToSection(id);
+    requestAnimationFrame(() => scrollToSection(id));
   };
 
   const handleResumeRequest = () => {
     setMenuOpen(false);
-    scrollToSection('contact');
-    window.dispatchEvent(new CustomEvent('requestResume'));
+    requestAnimationFrame(() => {
+      scrollToSection('contact');
+      window.dispatchEvent(new CustomEvent('requestResume'));
+    });
   };
 
   // The bar needs a solid surface whenever it has something to sit against —
@@ -166,6 +169,7 @@ export default function Navbar() {
 
   return (
     <motion.nav
+      ref={navRef}
       aria-label="Primary"
       className="fixed top-0 left-0 right-0 z-50 px-6 py-4"
       initial={{ y: -80, opacity: 0 }}
@@ -192,6 +196,7 @@ export default function Navbar() {
         {/* Logo */}
         <button
           type="button"
+          aria-label="Akash Sankar — home"
           onClick={() => go('home')}
           // tap-target: the mark itself is 40x40, and with the wordmark hidden
           // below sm that is the whole control — under the 44px touch minimum.
@@ -199,7 +204,7 @@ export default function Navbar() {
           style={{ background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', padding: 0 }}
         >
           <motion.div
-            className="w-10 h-10 squircle overflow-hidden flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 squircle overflow-hidden flex items-center justify-center shrink-0"
             style={{
               borderRadius: '30%',
               boxShadow: theme === 'dark'
@@ -257,45 +262,15 @@ export default function Navbar() {
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Theme toggle */}
-          <motion.button
-            type="button"
-            onClick={toggleTheme}
-            className="tap-target w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', cursor: 'pointer' }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            // The label has to say what the button *does*, not what it is:
-            // "Toggle theme" leaves a screen-reader user guessing which
-            // theme they are about to get.
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          >
-            <AnimatePresence mode="wait">
-              {theme === 'dark' ? (
-                <motion.div
-                  key="sun"
-                  initial={{ rotate: -90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <Sun size={16} style={{ color: 'var(--accent)' }} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="moon"
-                  initial={{ rotate: 90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: -90, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <Moon size={16} style={{ color: 'var(--nebula-1-text)' }} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
+        <div className="nav-actions flex items-center gap-2 sm:gap-3">
+          <div className="nav-utilities flex items-center gap-2 sm:gap-3">
+            <button type="button" className="motion-toggle tap-target" onClick={toggleMotion} aria-pressed={motionPaused}
+              aria-label={motionPaused ? 'Resume animations' : 'Pause animations'} title={motionPaused ? 'Resume animations (respects device preference)' : 'Pause animations'}>
+              {motionPaused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
+            </button>
+            <ThemePicker />
+          </div>
+          <AssistantLauncher onOpen={() => setMenuOpen(false)} />
 
           {/*
             Résumé — desktop only.
@@ -308,7 +283,7 @@ export default function Navbar() {
           <motion.button
             type="button"
             onClick={handleResumeRequest}
-            className="btn-glass hidden lg:flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-semibold flex-shrink-0"
+            className="btn-glass hidden lg:flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shrink-0"
             style={{
               fontFamily: 'Space Grotesk, sans-serif',
               cursor: 'pointer',
@@ -326,7 +301,7 @@ export default function Navbar() {
             ref={toggleRef}
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
-            className="tap-target lg:hidden w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            className="tap-target lg:hidden w-9 h-9 rounded-full flex items-center justify-center shrink-0"
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
@@ -376,7 +351,8 @@ export default function Navbar() {
         itself, it dangled for the entire time the menu was shut, which is most
         of the time.
       */}
-      <div id="mobile-menu" ref={menuRef}>
+      <div id="mobile-menu" ref={menuRef} inert={menuOpen ? undefined : ''} aria-hidden={!menuOpen}
+        style={{ pointerEvents: menuOpen ? undefined : 'none' }}>
       <AnimatePresence>
         {menuOpen && (
           <>
@@ -385,8 +361,8 @@ export default function Navbar() {
               close button stay reachable while the menu is open.
             */}
             <motion.div
-              className="lg:hidden fixed left-0 right-0 bottom-0"
-              style={{ top: 'var(--nav-height, 72px)', background: 'rgba(0,0,0,0.45)' }}
+              className="lg:hidden fixed left-0 right-0"
+              style={{ top: '100%', height: 'calc(100dvh - var(--nav-height))', background: 'rgba(0,0,0,0.45)' }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -404,11 +380,9 @@ export default function Navbar() {
               transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
             >
               <div
-                className="rounded-2xl overflow-hidden shadow-2xl"
+                className="rounded-2xl overflow-y-auto overscroll-contain shadow-2xl mobile-menu-surface"
                 style={{
-                  background: theme === 'dark' ? 'rgba(9, 10, 20, 0.97)' : 'rgba(252, 252, 253, 0.97)',
-                  backdropFilter: 'blur(24px)',
-                  WebkitBackdropFilter: 'blur(24px)',
+                  background: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
                 }}
               >
@@ -438,11 +412,11 @@ export default function Navbar() {
                             fontSize: '0.95rem',
                           }}
                         >
-                          <Icon size={18} aria-hidden="true" className="flex-shrink-0" />
+                          <Icon size={18} aria-hidden="true" className="shrink-0" />
                           {label}
                           {isActive && (
                             <span
-                              className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
                               style={{ background: 'var(--nebula-1-text)' }}
                               aria-hidden="true"
                             />

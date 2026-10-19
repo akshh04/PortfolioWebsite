@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import emailjs from '@emailjs/browser';
+import { OWNER_EMAIL, initialForm, validateContact, contactPayload, emailDraft, readContactDraft, saveContactDraft, projectDiscussionDraft, originalCvRequestDraft } from '../lib/contact';
+import { PUBLIC_CV } from '../lib/cv';
+import CVNotice from '../components/ui/CVNotice';
 import {
   Mail, Linkedin, Github, Instagram, FileText, CheckCircle,
   ExternalLink, Send, User, AtSign, MessageSquare, Tag, Loader2, AlertCircle,
   Copy, Check
 } from 'lucide-react';
-import GradientOrb from '../components/ui/GradientOrb';
 
 // ─── EmailJS Configuration ─────────────────────────────────────────────────
 const EMAILJS_SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'portfolio.email';
@@ -22,7 +23,7 @@ const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || ''; // Co
  */
 const EMAILJS_CONFIGURED = Boolean(EMAILJS_PUBLIC_KEY);
 
-const OWNER_EMAIL = 'akashsankar80@gmail.com';
+
 
 const socials = [
   {
@@ -75,15 +76,15 @@ const inputStyles = {
 function FieldError({ id, message }) {
   if (!message) return null;
   return (
-    <p id={id} className="flex items-center gap-1.5 text-xs" style={{ color: '#f87171' }}>
-      <AlertCircle size={12} className="flex-shrink-0" aria-hidden="true" />
+    <p id={id} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--error-text)' }}>
+      <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
       {message}
     </p>
   );
 }
 
 function fieldBorder(focused, invalid) {
-  if (invalid) return '#f87171';
+  if (invalid) return 'var(--error-text)';
   return focused ? 'var(--nebula-1)' : 'var(--border)';
 }
 
@@ -99,15 +100,17 @@ const FormField = React.forwardRef(({ icon: Icon, label, id, type = 'text', valu
     <div className="relative flex flex-col gap-1.5">
       <label htmlFor={id} className="text-xs font-semibold tracking-wide uppercase"
         style={{ color: 'var(--text-muted)', fontFamily: 'Space Grotesk, sans-serif' }}>
-        {label}
+        {label}{!required && <span className="field-optional"> (optional)</span>}
       </label>
       <div className="relative">
         <Icon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10"
           aria-hidden="true"
-          style={{ color: error ? '#f87171' : focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
+          style={{ color: error ? 'var(--error-text)' : focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
         <input
           ref={ref}
           id={id}
+          name={id}
+          maxLength={type === 'email' ? 254 : 200}
           type={type}
           value={value}
           onChange={onChange}
@@ -144,9 +147,11 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
       <div className="relative">
         <Icon size={18} className="absolute left-3.5 top-[1rem] pointer-events-none z-10"
           aria-hidden="true"
-          style={{ color: error ? '#f87171' : focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
+          style={{ color: error ? 'var(--error-text)' : focused ? 'var(--nebula-1)' : 'var(--text-secondary)', transition: 'color 0.2s' }} />
         <textarea
           id={id}
+          name={id}
+          maxLength={5000}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
@@ -170,40 +175,24 @@ function TextareaField({ icon: Icon, label, id, value, onChange, placeholder, re
   );
 }
 
-const initialForm = { name: '', email: '', subject: '', message: '' };
-
-// Deliberately permissive — the job here is to catch a typo like "jane@"
-// before it costs a round trip, not to adjudicate RFC 5322.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-/*
- * `required` on an input is satisfied by a single space, so the form happily
- * submitted a message consisting of whitespace and reported it as sent.
- */
-function validate(form) {
-  const errors = {};
-  if (!form.name.trim()) errors.name = 'Please tell me your name.';
-  if (!form.email.trim()) errors.email = 'An email address is needed for a reply.';
-  else if (!EMAIL_PATTERN.test(form.email.trim())) errors.email = 'That address does not look right.';
-  if (!form.subject.trim()) errors.subject = 'A short subject helps me prioritise.';
-  if (form.message.trim().length < 10) errors.message = 'A little more detail, please — at least 10 characters.';
-  return errors;
-}
-
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
 const VIEWPORT = { once: true, margin: '-80px' };
 
 export default function Contact() {
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(readContactDraft);
+  const [draftSaved, setDraftSaved] = useState(false);
+  useEffect(() => { setDraftSaved(saveContactDraft(form)); }, [form]);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
   const [errorMsg, setErrorMsg] = useState('');
   // Populated only after a submit attempt: flagging an empty form red before
   // anyone has typed is scolding, not helping.
   const [fieldErrors, setFieldErrors] = useState({});
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const nameInputRef = useRef(null);
-  const resetTimerRef = useRef(null);
+  const sendingRef = useRef(false);
   const copyTimerRef = useRef(null);
+  const autoReplyTimerRef = useRef(null);
 
   /*
    * navigator.clipboard only exists in a secure context, so on a plain-http
@@ -218,48 +207,52 @@ export default function Contact() {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
       await navigator.clipboard.writeText(address);
       setCopied(true);
+      setCopyError(false);
       clearTimeout(copyTimerRef.current);
       copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Nothing useful to show inline here; the address is already on screen
-      // in full and selectable, so the visitor can copy it by hand.
+      // Keep a selectable address and explain the fallback when permission fails.
       setCopied(false);
+      setCopyError(true);
     }
   };
 
   useEffect(() => {
     const handleRequestResume = () => {
-      setForm(prev => ({
-        ...prev,
-        // "Résumé" everywhere else on the site, including the buttons that
-        // trigger this — the prefill was the last place still saying "Resume".
-        subject: 'Résumé request',
-        message: "Hi Akash, I'd like to request a copy of your résumé."
-      }));
+      if (sendingRef.current) return;
+      setStatus('idle');
+      setFieldErrors({});
+      setForm(originalCvRequestDraft);
       if (nameInputRef.current) {
-        // preventScroll matters: the caller has already started a smooth
-        // scroll to this section, and a focus-driven scroll would cancel it
-        // and snap the page straight to the input instead.
-        nameInputRef.current.focus({ preventScroll: true });
+        // Reveal the form itself, including when requested from the lower card.
+        nameInputRef.current.focus();
       }
     };
     window.addEventListener('requestResume', handleRequestResume);
-    return () => window.removeEventListener('requestResume', handleRequestResume);
+    const handleDiscussion = event => {
+      if (sendingRef.current || typeof event.detail?.title !== 'string') return;
+      setForm(previous => projectDiscussionDraft(previous, event.detail.title));
+      setStatus('idle');
+      setFieldErrors({});
+      nameInputRef.current?.focus();
+    };
+    window.addEventListener('discussProject', handleDiscussion);
+    return () => {
+      window.removeEventListener('requestResume', handleRequestResume);
+      window.removeEventListener('discussProject', handleDiscussion);
+    };
   }, []);
 
   // Any pending timer must not fire after unmount.
   useEffect(() => () => {
-    clearTimeout(resetTimerRef.current);
-    clearTimeout(copyTimerRef.current);
-  }, []);
 
-  const scheduleStatusReset = (ms) => {
-    clearTimeout(resetTimerRef.current);
-    resetTimerRef.current = setTimeout(() => setStatus('idle'), ms);
-  };
+    clearTimeout(copyTimerRef.current);
+    clearTimeout(autoReplyTimerRef.current);
+  }, []);
 
   const handleChange = (field) => (e) => {
     const { value } = e.target;
+    if (status !== 'sending') setStatus('idle');
     setForm(prev => ({ ...prev, [field]: value }));
     // Clear a field's error as soon as it is being corrected, rather than
     // leaving it red until the next submit.
@@ -269,7 +262,8 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const errors = validate(form);
+    if (sendingRef.current) return;
+    const errors = validateContact(form);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       // Send focus to the first problem so a keyboard or screen-reader user
@@ -280,60 +274,45 @@ export default function Contact() {
     }
 
     if (!EMAILJS_CONFIGURED) {
-      setStatus('error');
-      setErrorMsg(`The form is not connected right now — please email ${OWNER_EMAIL} directly.`);
-      scheduleStatusReset(8000);
+      window.location.href = emailDraft(form);
       return;
     }
 
     setFieldErrors({});
+    sendingRef.current = true;
     setStatus('sending');
     setErrorMsg('');
 
     try {
-      // Send message to the owner
+      const { default: emailjs } = await import('@emailjs/browser');
+      // Confirm the owner delivery before attempting the courtesy reply.
       await emailjs.send(
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
-        {
-          from_name:  form.name.trim(),
-          from_email: form.email.trim(),
-          subject:    form.subject.trim(),
-          message:    form.message.trim(),
-          to_email:   OWNER_EMAIL,
-          reply_to:   form.email.trim(),
-        },
+        contactPayload(form),
         EMAILJS_PUBLIC_KEY
       );
 
-      // Auto-reply is best-effort. It used to be awaited inside the same try,
-      // so a failing courtesy email reported the whole submission as failed
-      // even though the message had already reached the inbox — prompting the
-      // sender to send it all over again.
-      try {
-        await emailjs.send(
-          EMAILJS_SERVICE_ID,
-          EMAILJS_AUTO_REPLY_TEMPLATE_ID,
-          {
-            to_name:    form.name.trim(),
-            to_email:   form.email.trim(),
-            user_email: form.email.trim(),
-            reply_to:   OWNER_EMAIL,
-          },
-          EMAILJS_PUBLIC_KEY
-        );
-      } catch (autoReplyErr) {
-        console.warn('EmailJS auto-reply failed (message itself was sent):', autoReplyErr);
-      }
-
       setStatus('success');
+      saveContactDraft(initialForm);
       setForm(initialForm);
-      scheduleStatusReset(6000);
+      // EmailJS throttles consecutive requests. The courtesy reply is delayed
+      // and independent: its failure must not ask visitors to resend a message
+      // that already reached the owner. Capture this submission's values.
+      autoReplyTimerRef.current = setTimeout(() => {
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_AUTO_REPLY_TEMPLATE_ID, {
+          to_name: form.name.trim(), to_email: form.email.trim(),
+          user_email: form.email.trim(), reply_to: OWNER_EMAIL,
+        }, EMAILJS_PUBLIC_KEY).catch(() => {
+          console.warn('The message was sent, but its courtesy reply was unavailable.');
+        });
+      }, 1100);
     } catch (err) {
       console.error('EmailJS error:', err);
       setStatus('error');
-      setErrorMsg(err?.text || 'Something went wrong. Please email me directly.');
-      scheduleStatusReset(5000);
+      setErrorMsg('Your message could not be sent. Your draft is still here — please try again or email me directly.');
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -347,10 +326,6 @@ export default function Contact() {
 
   return (
     <div className="relative overflow-hidden">
-
-      <GradientOrb size={600} color="rgba(124,58,237,0.15)" top="-120px" right="-150px" delay={0} />
-      <GradientOrb size={500} color="rgba(6,182,212,0.12)" bottom="-50px" left="-100px" delay={2} />
-      <GradientOrb size={400} color="rgba(37,99,235,0.1)" top="50%" left="40%" delay={4} mobileHidden />
 
       <div className="section-shell max-w-5xl">
 
@@ -372,6 +347,25 @@ export default function Contact() {
             Whether you have a research opportunity, collaboration idea, or just want to geek out about dark matter — my inbox is always open.
           </motion.p>
         </motion.div>
+
+        <div className="contact-access" aria-label="Quick contact and academic CV">
+          <div><h3>Connect directly</h3><CVNotice /></div>
+          <div className="contact-access-actions">
+            <a className="contact-email-action" href={`mailto:${OWNER_EMAIL}`}><Mail size={18} aria-hidden="true" />Email Akash</a>
+            <a className="cv-download" href={PUBLIC_CV.href} target="_blank" rel="noopener noreferrer"><FileText size={18} aria-hidden="true" />{PUBLIC_CV.label}<span className="cv-format">PDF</span><span className="sr-only"> (opens in a new tab)</span></a>
+          </div>
+        </div>
+
+        <section className="collaboration-interests" aria-labelledby="collaboration-title">
+          <h3 id="collaboration-title">Let's work together</h3>
+          <p>I'm open to collaborations in astrophysics research, radio instrumentation, and scientific data analysis.</p>
+          <div>{['Astrophysics research', 'Radio instrumentation', 'Scientific data analysis'].map(topic => <button key={topic} type="button" disabled={status === 'sending'} onClick={() => {
+            setForm(previous => ({ ...previous, subject: `${topic} collaboration` }));
+            setStatus('idle');
+            setFieldErrors(previous => ({ ...previous, subject: undefined }));
+            nameInputRef.current?.focus();
+          }}>{topic} →</button>)}</div>
+        </section>
 
         {/* Two-column layout: form + quick links */}
         <div className="grid lg:grid-cols-5 gap-8 mb-16">
@@ -400,7 +394,9 @@ export default function Contact() {
                 the browser's own bubble fires first, in its own wording and
                 its own language, and our inline messages never appear.
               */}
-              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+              {!EMAILJS_CONFIGURED && <p className="form-note">Use this form to prepare a draft in your email app, or <a href={`mailto:${OWNER_EMAIL}`}>email me directly</a>. You can review it before sending.</p>}
+              <form onSubmit={handleSubmit} noValidate aria-busy={status === 'sending'} className="flex flex-col gap-4"><fieldset disabled={status === 'sending'} className="flex flex-col gap-4 min-w-0">
+                <p className="form-requirements">Name, email, and message are required. Subject is optional.</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <FormField icon={User} label="Your Name" id="name" value={form.name} ref={nameInputRef}
                     onChange={handleChange('name')} placeholder="Jane Smith" required autoComplete="name"
@@ -413,7 +409,7 @@ export default function Contact() {
 
                 <FormField icon={Tag} label="Subject" id="subject" value={form.subject}
                   onChange={handleChange('subject')}
-                  placeholder="Research collaboration, internship, general query…" required
+                  placeholder="Research collaboration, internship, general query…"
                   error={fieldErrors.subject} />
 
                 <TextareaField icon={MessageSquare} label="Message" id="message"
@@ -421,6 +417,8 @@ export default function Contact() {
                   placeholder="Tell me about your project, opportunity, or question…" required
                   error={fieldErrors.message} />
 
+</fieldset>
+                {draftSaved && <div className="draft-status"><p>Draft saved in this browser tab.</p><button type="button" disabled={status === 'sending'} onClick={() => { setForm({ ...initialForm }); setFieldErrors({}); setStatus('idle'); }}>Clear draft</button></div>}
                 {/*
                   Status feedback. role="status" so the outcome of a submit is
                   announced — previously it was a purely visual change, which a
@@ -435,9 +433,9 @@ export default function Contact() {
                       className="flex items-center gap-3 p-4 rounded-xl"
                       style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)' }}
                     >
-                      <CheckCircle size={18} style={{ color: '#22c55e' }} />
+                      <CheckCircle size={18} style={{ color: 'var(--success-text)' }} />
                       <div>
-                        <p className="font-semibold text-sm" style={{ color: '#22c55e' }}>Message sent!</p>
+                        <p className="font-semibold text-sm" style={{ color: 'var(--success-text)' }}>Message sent!</p>
                         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Thanks for reaching out — I'll reply soon.</p>
                       </div>
                     </motion.div>
@@ -449,9 +447,9 @@ export default function Contact() {
                       className="flex items-center gap-3 p-4 rounded-xl"
                       style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)' }}
                     >
-                      <AlertCircle size={18} style={{ color: '#ef4444' }} />
+                      <AlertCircle size={18} style={{ color: 'var(--error-text)' }} />
                       <div>
-                        <p className="font-semibold text-sm" style={{ color: '#ef4444' }}>Failed to send</p>
+                        <p className="font-semibold text-sm" style={{ color: 'var(--error-text)' }}>Failed to send</p>
                         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{errorMsg}</p>
                       </div>
                     </motion.div>
@@ -473,7 +471,7 @@ export default function Contact() {
                     ) : status === 'success' ? (
                       <><CheckCircle size={16} /> Sent!</>
                     ) : (
-                      <><Send size={16} /> Send Message</>
+                      <><Send size={16} /> {EMAILJS_CONFIGURED ? 'Send Message' : 'Open email draft'}</>
                     )}
                   </span>
                 </motion.button>
@@ -504,30 +502,25 @@ export default function Contact() {
               style={{ border: '1px solid rgba(124,58,237,0.15)' }}
               whileHover={{ scale: 1.01 }}
             >
-              <a
-                href="mailto:akashsankar80@gmail.com"
-                className="absolute inset-0 rounded-2xl no-underline"
-                aria-label="Email akashsankar80@gmail.com — opens your mail client"
-              />
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
                 style={{ background: 'var(--gradient)' }}>
                 <Mail size={20} className="text-white" />
               </div>
               <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Email me directly</p>
               <div className="flex items-center justify-between gap-2">
-                <p className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
-                  akashsankar80@gmail.com
-                </p>
+                <a href="mailto:akashsankarv@gmail.com" className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
+                  akashsankarv@gmail.com
+                </a>
                 <button
                   type="button"
                   onClick={handleCopyEmail}
-                  className="tap-target relative z-10 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 flex-shrink-0"
+                  className="tap-target relative z-10 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 shrink-0"
                   style={{
                     background: copied ? 'rgba(34, 197, 94, 0.15)' : 'var(--surface-hover)',
-                    color: copied ? '#22c55e' : 'var(--text-secondary)',
+                    color: copied ? 'var(--success-text)' : 'var(--text-secondary)',
                     border: copied ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--border)',
                     fontFamily: 'Space Grotesk, sans-serif',
-                    height: '28px',
+                    minWidth: '44px', minHeight: '44px',
                     cursor: 'pointer',
                   }}
                   aria-label={copied ? 'Email address copied' : 'Copy email address'}
@@ -535,7 +528,7 @@ export default function Contact() {
                 >
                   {copied ? (
                     <span className="flex items-center gap-1 font-semibold whitespace-nowrap">
-                      <Check size={13} className="text-green-500 flex-shrink-0" />
+                      <Check size={13} className="shrink-0" />
                       <span>Copied</span>
                     </span>
                   ) : (
@@ -545,6 +538,7 @@ export default function Contact() {
                   )}
                 </button>
               </div>
+              <p role="status" className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>{copyError ? 'Copy unavailable. Select the address above to copy it.' : copied ? 'Email address copied.' : ''}</p>
               <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3-text)' }}>
                 Open mail client <ExternalLink size={11} />
               </p>
@@ -569,7 +563,7 @@ export default function Contact() {
                 <FileText size={20} className="text-white" />
               </div>
               <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                Want my full background?
+                Want the original CV?
               </p>
               <p className="font-bold text-sm" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
                 Request Résumé
@@ -588,6 +582,7 @@ export default function Contact() {
 
         {/* Social links */}
         <motion.div
+          className="contact-socials"
           initial="initial"
           whileInView="animate"
           viewport={{ once: true }}
@@ -597,7 +592,7 @@ export default function Contact() {
             <h3 className="section-eyebrow">Find me online</h3>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="contact-social-grid grid md:grid-cols-3 gap-4">
             {socials.map(({ icon: Icon, label, href, color, desc }) => (
               <motion.a
                 key={label}
@@ -606,7 +601,7 @@ export default function Contact() {
                 rel="noopener noreferrer"
                 variants={fadeUp}
                 aria-label={`${label} — ${desc}, opens in a new tab`}
-                className="glass-card gradient-border p-6 flex flex-col items-center gap-3 text-center no-underline"
+                className="contact-social-link glass-card gradient-border p-6 flex flex-col items-center gap-3 text-center no-underline"
                 whileHover={{
                   y: -8,
                   boxShadow: `0 16px 48px ${color}30`,
@@ -614,18 +609,19 @@ export default function Contact() {
                 whileTap={{ scale: 0.97 }}
               >
                 <motion.div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  className="contact-social-icon w-12 h-12 rounded-xl flex items-center justify-center"
                   style={{ background: `${color}18`, border: `1px solid ${color}35` }}
                   whileHover={{ rotate: 10, scale: 1.1 }}
                 >
                   <Icon size={22} style={{ color }} aria-hidden="true" />
                 </motion.div>
-                <div>
+                <div className="contact-social-copy">
                   <p className="font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
                     {label}
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{desc}</p>
                 </div>
+                <ExternalLink className="contact-social-arrow" size={16} aria-hidden="true" />
               </motion.a>
             ))}
           </div>

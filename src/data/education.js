@@ -6,7 +6,7 @@
 const entries = [
   {
     id: 'msc-bremen',
-    degree: 'M.Sc. Astrophysics',
+    degree: 'M.Sc. Physics',
     institution: 'University of Bremen',
     university: 'Bremen, Germany',
     /*
@@ -14,11 +14,11 @@ const entries = [
      * with no grade, so the card rendered an "In progress" badge for a degree
      * that has not begun yet.
      */
-    period: 'From Oct 2026',
-    grade: 'Incoming student',
+    period: 'Oct 2026 – Present',
+    grade: 'In progress',
     ongoing: true,
     description:
-      'Graduate study in astrophysics, building on a research background in dark matter, galaxy dynamics, and radio astronomy instrumentation.',
+      'Graduate study in physics, building on a research background in dark matter, galaxy dynamics, and radio astronomy instrumentation.',
     icon: '🔭',
     color: '#7c3aed',
   },
@@ -118,6 +118,9 @@ export const professionalDevelopment = [
     issuer: 'IIT Kanpur with Edufabrica Pvt. Ltd.',
     period: 'Dec 2023 – Jan 2024',
     detail: 'Month-long certificate programme covering general relativity and stellar dynamics.',
+    tags: ['General Relativity', 'Stellar Dynamics'],
+    icon: '🎓',
+    color: '#7c3aed',
   },
   {
     id: 'iisc-workshop',
@@ -125,6 +128,9 @@ export const professionalDevelopment = [
     issuer: 'IISc Bengaluru with Edufabrica Pvt. Ltd.',
     period: 'Jan 2024',
     detail: 'Two-day intensive on cosmology, closing with a hands-on astronomical data interpretation module.',
+    tags: ['Cosmology', 'Data Interpretation'],
+    icon: '🔬',
+    color: '#2563eb',
   },
   {
     id: 'iitbbs-online',
@@ -132,6 +138,9 @@ export const professionalDevelopment = [
     issuer: 'IIT Bhubaneswar with Edufabrica Pvt. Ltd.',
     period: 'Nov – Dec 2023',
     detail: 'One-month programme in stellar physics and cosmology with practical data-analysis assignments.',
+    tags: ['Stellar Physics', 'Cosmology', 'Data Analysis'],
+    icon: '🌟',
+    color: '#06b6d4',
   },
   {
     id: 'iirs-isro',
@@ -139,6 +148,9 @@ export const professionalDevelopment = [
     issuer: 'Indian Institute of Remote Sensing, ISRO Dehradun',
     period: 'Jul 2021',
     detail: 'ISRO-sponsored course on analysing Earth observation data.',
+    tags: ['Remote Sensing', 'GIS', 'ISRO'],
+    icon: '🛰️',
+    color: '#2563eb',
   },
 ];
 
@@ -172,14 +184,14 @@ export const memberships = [
 
 export const stats = [
   // Counted from src/data/experience.js.
-  { value: 3, suffix: '', label: 'Research Internships', icon: '🔬' },
+  { value: 3, suffix: '', label: 'Research Internships', icon: '🔬', showInHero: true },
   /*
    * Counted from src/data/projects.js — every entry whose status is
    * 'completed'. The radio-astronomy R&D entry that used to be counted here
    * was a job, not a project and now lives in experience.js; Exoplanet
    * Explorer took the slot the 'Coming Soon' placeholder was holding.
    */
-  { value: 4, suffix: '', label: 'Research Projects', icon: '🌌' },
+  { value: 4, suffix: '', label: 'Research Projects', icon: '🌌', showInHero: true },
   // certifications.length + professionalDevelopment.length.
   { value: 6, suffix: '', label: 'Courses & Training', icon: '🎓' },
   { value: 8.35, suffix: '', label: 'CGPA (B.Sc. Physics)', icon: '⭐', isDecimal: true },

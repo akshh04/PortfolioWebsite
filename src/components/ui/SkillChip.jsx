@@ -57,10 +57,10 @@ export default function SkillChip({
         className="w-full text-left p-4 flex flex-col gap-0 bg-transparent border-0"
         style={{ cursor: expandable ? 'pointer' : 'default', borderRadius: 16 }}
       >
-        <span className="flex items-center gap-3 w-full">
+        <span className="flex flex-col items-start sm:flex-row sm:items-center gap-3 w-full">
           {Icon && (
             <span
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-200"
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200"
               style={{
                 background: isOpen ? `rgba(${rgb}, 0.28)` : `rgba(${rgb}, 0.15)`,
               }}

@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Float } from '@react-three/drei';
 import * as THREE from 'three';
+import { animationDelta } from '../../lib/animationTime';
 
 /*
  * Every rotation below is expressed in radians per second and multiplied by the
@@ -13,109 +13,79 @@ import * as THREE from 'three';
  * Delta is clamped because a backgrounded tab resumes with one enormous delta,
  * which would otherwise snap every object to a random new orientation.
  */
-const MAX_DELTA = 1 / 30;
-
-const clampDelta = (delta) => Math.min(delta, MAX_DELTA);
+// Keep a local clock for floating too. Drei's Float uses elapsed wall time,
+// which skips ahead after a demand-rendered pause even if rotation is frozen.
+function SceneFloat({ children, running, speed, rotationIntensity, floatIntensity }) {
+  const groupRef = useRef();
+  const time = useRef(0);
+  useFrame((_, delta) => {
+    if (!running || !groupRef.current) return;
+    time.current += animationDelta(delta);
+    const phase = time.current / 4 * speed;
+    groupRef.current.rotation.set(
+      Math.cos(phase) / 8 * rotationIntensity,
+      Math.sin(phase) / 8 * rotationIntensity,
+      Math.sin(phase) / 20 * rotationIntensity
+    );
+    groupRef.current.position.y = Math.sin(phase) / 10 * floatIntensity;
+  });
+  return <group ref={groupRef} rotation={[rotationIntensity / 8, 0, 0]}>{children}</group>;
+}
 
 // Ringed Planet (Saturn-like)
-function Planet({ position = [0, 0, 0] }) {
-  const groupRef = useRef();
-  const ringRef = useRef();
+function Planet({ position = [0, 0, 0], running }) {
+  const planetRef = useRef();
 
   useFrame((state, delta) => {
-    const d = clampDelta(delta);
-    if (groupRef.current) {
-      groupRef.current.rotation.y += 0.18 * d;
-    }
-    if (ringRef.current) {
-      ringRef.current.rotation.z += 0.06 * d;
+    const d = animationDelta(delta, running);
+    if (planetRef.current) {
+      // Rotate the entire tilted assembly. Spinning a uniform circular ring
+      // around its own normal is visually indistinguishable from standing still.
+      planetRef.current.rotation.y += 0.18 * d;
     }
   });
 
   return (
-    <Float speed={1.5} rotationIntensity={0.3} floatIntensity={0.8}>
-      <group ref={groupRef} position={position}>
+    <SceneFloat running={running} speed={1.2} rotationIntensity={0.12} floatIntensity={0.5}>
+      <group ref={planetRef} position={position}>
         {/* Planet body */}
         <mesh>
-          <icosahedronGeometry args={[1, 3]} />
+          <sphereGeometry args={[1.15, 48, 32]} />
           <meshPhongMaterial
-            color="#6d28d9"
-            emissive="#2563eb"
-            emissiveIntensity={0.2}
+            color="#63518b"
+            emissive="#5b21b6"
+            emissiveIntensity={0.12}
             shininess={60}
             specular="#a78bfa"
           />
         </mesh>
         {/* Ring */}
-        <mesh ref={ringRef} rotation={[Math.PI / 3, 0, 0.3]}>
-          <torusGeometry args={[1.7, 0.15, 8, 64]} />
+        <mesh rotation={[Math.PI / 3, 0.1, -0.35]}>
+          <ringGeometry args={[1.55, 1.94, 96]} />
           <meshBasicMaterial
-            color="#7c3aed"
+            color="#a78bfa"
             transparent
-            opacity={0.5}
+            opacity={0.32}
             side={THREE.DoubleSide}
           />
-        </mesh>
-        {/* Subtle glow */}
-        <mesh>
-          <icosahedronGeometry args={[1.1, 1]} />
-          <meshBasicMaterial color="#7c3aed" transparent opacity={0.05} />
-        </mesh>
-      </group>
-    </Float>
-  );
-}
-
-// Satellite Dish
-function SatelliteDish({ position = [0, 0, 0] }) {
-  const groupRef = useRef();
-
-  useFrame((state, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += 0.36 * clampDelta(delta);
-    }
-  });
-
-  return (
-    <Float speed={2} rotationIntensity={0.2} floatIntensity={1}>
-      <group ref={groupRef} position={position}>
-        {/* Mast */}
-        <mesh position={[0, -0.5, 0]}>
-          <cylinderGeometry args={[0.05, 0.08, 1, 8]} />
-          <meshPhongMaterial color="#94a3b8" shininess={40} />
-        </mesh>
-        {/* Base */}
-        <mesh position={[0, -1.1, 0]}>
-          <sphereGeometry args={[0.15, 8, 8]} />
-          <meshPhongMaterial color="#94a3b8" shininess={40} />
-        </mesh>
-        {/* Dish */}
-        <mesh position={[0, 0.1, 0]} rotation={[0.5, 0, 0]}>
-          <torusGeometry args={[0.5, 0.04, 8, 32, Math.PI * 2]} />
-          <meshPhongMaterial color="#06b6d4" emissive="#0891b2" emissiveIntensity={0.3} shininess={80} />
-        </mesh>
-        <mesh position={[0, 0.05, 0]} rotation={[0.5, 0, 0]}>
-          <ringGeometry args={[0.1, 0.5, 16]} />
-          <meshPhongMaterial color="#06b6d4" emissive="#0891b2" emissiveIntensity={0.3} shininess={80} />
-        </mesh>
-        {/* Feed horn */}
-        <mesh position={[0, 0.5, 0.3]} rotation={[0.3, 0, 0]}>
-          <cylinderGeometry args={[0.03, 0.06, 0.3, 6]} />
-          <meshPhongMaterial color="#94a3b8" shininess={40} />
+          <mesh>
+            <ringGeometry args={[2, 2.06, 96]} />
+            <meshBasicMaterial color="#c4b5fd" transparent opacity={0.25} side={THREE.DoubleSide} />
+          </mesh>
         </mesh>
       </group>
-    </Float>
+    </SceneFloat>
   );
 }
 
 // Asteroids
-function Asteroid({ position, scale = 1, rotSpeed = [0.3, 0.18, 0.12], floatSpeed = 1.4 }) {
+function Asteroid({ position, scale = 1, rotSpeed = [0.3, 0.18, 0.12], floatSpeed = 1.4, running }) {
   const meshRef = useRef();
   const rotRef = useRef(rotSpeed);
 
   useFrame((state, delta) => {
     if (meshRef.current) {
-      const d = clampDelta(delta);
+      const d = animationDelta(delta, running);
       meshRef.current.rotation.x += rotRef.current[0] * d;
       meshRef.current.rotation.y += rotRef.current[1] * d;
       meshRef.current.rotation.z += rotRef.current[2] * d;
@@ -126,16 +96,16 @@ function Asteroid({ position, scale = 1, rotSpeed = [0.3, 0.18, 0.12], floatSpee
     // `speed` was `1 + Math.random()` evaluated during render, so every
     // re-render handed Float a different speed and the asteroid's bob jumped.
     // The value is now fixed per asteroid in the scene's data below.
-    <Float speed={floatSpeed} floatIntensity={0.5} rotationIntensity={0.5}>
+    <SceneFloat running={running} speed={floatSpeed} floatIntensity={0.5} rotationIntensity={0.5}>
       <mesh ref={meshRef} position={position} scale={scale}>
         <icosahedronGeometry args={[0.25, 0]} />
         <meshPhongMaterial color="#475569" emissive="#1e293b" emissiveIntensity={0.2} shininess={15} />
       </mesh>
-    </Float>
+    </SceneFloat>
   );
 }
 
-export default function HeroScene() {
+export default function HeroScene({ running = true }) {
   // rotSpeed is radians/second (see clampDelta note above); floatSpeed is fixed
   // per asteroid so the bob stays stable across re-renders.
   const asteroids = useMemo(() => [
@@ -150,19 +120,17 @@ export default function HeroScene() {
     <>
       {/* Lights */}
       <ambientLight intensity={0.4} />
+      <directionalLight position={[-3, 4, 5]} intensity={2} color="#c4b5fd" />
       <pointLight position={[5, 5, 5]} intensity={1.5} color="#a78bfa" />
       <pointLight position={[-5, -3, -3]} intensity={0.8} color="#06b6d4" />
       <pointLight position={[0, 8, 0]} intensity={0.6} color="#ffffff" />
 
-      {/* Main planet — slightly off-center right */}
-      <Planet position={[2.5, 0.2, -1]} />
-
-      {/* Satellite dish — left side */}
-      <SatelliteDish position={[-2.8, -0.5, 0]} />
+      {/* Main planet */}
+      <Planet position={[0, 0.2, 0]} running={running} />
 
       {/* Asteroids */}
       {asteroids.map((a, i) => (
-        <Asteroid key={i} {...a} />
+        <Asteroid key={i} {...a} running={running} />
       ))}
     </>
   );

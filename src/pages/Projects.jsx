@@ -1,17 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import GradientOrb from '../components/ui/GradientOrb';
 import ProjectCard from '../components/ui/ProjectCard';
+import ProjectDialog from '../components/ui/ProjectDialog';
+import { openProject, closeProject, switchProject } from '../lib/projectNavigation';
 import { scrollToSection } from '../lib/scroll';
 import { projects } from '../data/projects';
 
 export default function Projects() {
+  const readProject = () => projects.find(project => window.location.hash === `#project/${project.slug}`) || null;
+  const [activeProject, setActiveProject] = useState(readProject);
+  const openerRef = useRef(null);
+  useEffect(() => {
+    const revealProject = () => {
+      const requested = projects.find(project => window.location.hash === `#project/${project.slug}`);
+      setActiveProject(requested || null);
+    };
+    window.addEventListener('hashchange', revealProject);
+    return () => window.removeEventListener('hashchange', revealProject);
+  }, []);
+  const open = (project, button) => {
+    openerRef.current = button;
+    openProject(project.slug);
+  };
   return (
     <div className="relative overflow-hidden">
-
-      <GradientOrb size={500} color="rgba(124,58,237,0.14)" top="-80px" left="-100px" delay={0} />
-      <GradientOrb size={450} color="rgba(37,99,235,0.12)" bottom="150px" right="-80px" delay={2} />
-      <GradientOrb size={350} color="rgba(6,182,212,0.1)" top="40%" left="50%" delay={4} mobileHidden />
 
       <div className="section-shell max-w-7xl">
 
@@ -25,10 +37,10 @@ export default function Projects() {
         >
           <p className="section-eyebrow">What I've produced</p>
           {/* h2, not h1 — one document, one h1 (the hero name). */}
-          <h2 className="section-title">My <span className="gradient-text">Projects</span></h2>
+          <h2 className="section-title">Selected <span className="gradient-text">Research &amp; Projects</span></h2>
           <p className="section-subtitle mx-auto">
-            Research projects, literature reviews, and presentations — the work itself.
-            The roles behind it live in{' '}
+            From astronomical data to research papers and presentations. Explore the work,
+            or see the roles behind it in{' '}
             <a
               href="#experience"
               onClick={(e) => { e.preventDefault(); scrollToSection('experience'); }}
@@ -36,7 +48,7 @@ export default function Projects() {
               style={{ color: 'var(--nebula-3-text)' }}
             >
               Work&nbsp;Experience
-            </a>. Click any card to read the full description.
+            </a>.
           </p>
         </motion.div>
 
@@ -45,56 +57,22 @@ export default function Projects() {
           A list, semantically: sibling cards in a bare div announce as
           unrelated regions, with no count and no position.
         */}
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 list-none p-0 m-0">
+        <p className="project-count mb-6">{projects.length} selected projects</p>
+        <ul className="research-grid">
           {projects.map((project, index) => (
             // No `display: contents` here — several browsers drop a
             // contents-styled list item out of the accessibility tree
             // entirely, which would undo the reason for the <ul>.
-            <li key={project.id} className="flex">
-              <ProjectCard project={project} delay={Math.min(index * 0.08, 0.24)} />
+            <li key={project.id} className={`flex${project.featured ? ' featured-slot' : ''}`}>
+              <ProjectCard project={project} featured={project.featured} onOpen={open} delay={Math.min(index * 0.08, 0.24)} />
             </li>
           ))}
         </ul>
 
-        {/* Call to collaborate */}
-        <motion.div
-          initial={{ opacity: 0, y: 28 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-20 text-center"
-        >
-          <div 
-            className="glass-card inline-block p-8"
-            style={{ 
-              border: '1px solid rgba(124,58,237,0.25)',
-              background: 'linear-gradient(135deg, rgba(124,58,237,0.08), rgba(6,182,212,0.05))',
-            }}
-          >
-            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>
-              Interested in collaboration or have a research opportunity?
-            </p>
-            <h3 className="text-xl font-bold gradient-text mb-1" 
-              style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              Let's explore the universe together
-            </h3>
-            <a
-              href="#contact"
-              onClick={(e) => {
-                e.preventDefault();
-                scrollToSection('contact');
-              }}
-              // The padding keeps the link visually where it was while giving
-              // it a target tall enough to hit reliably on a touchscreen — it
-              // was a 20px-high strip, then a 36px one.
-              className="tap-target inline-flex items-center gap-2 mt-3 py-2 px-1 text-sm font-medium"
-              style={{ color: 'var(--nebula-3-text)' }}
-            >
-              Get in touch →
-            </a>
-          </div>
-        </motion.div>
+
       </div>
+      {activeProject && <ProjectDialog project={activeProject} onClose={() => closeProject(activeProject.slug)} openerRef={openerRef}
+        projectList={projects} onNavigate={project => switchProject(project.slug)} />}
     </div>
   );
 }

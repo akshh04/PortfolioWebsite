@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Mic } from 'lucide-react';
-import GradientOrb from '../components/ui/GradientOrb';
+import { Mic, Calendar } from 'lucide-react';
+import ContentIcon from '../components/ui/ContentIcon';
 import ProjectCard from '../components/ui/ProjectCard';
 import { experience, conferences } from '../data/experience';
 
@@ -26,9 +26,6 @@ const VIEWPORT = { once: true, margin: '-80px' };
 export default function Experience() {
   return (
     <div className="relative overflow-hidden">
-      <GradientOrb size={500} color="rgba(6,182,212,0.13)" top="-80px" right="-100px" delay={0} />
-      <GradientOrb size={430} color="rgba(124,58,237,0.12)" bottom="120px" left="-90px" delay={2} />
-      <GradientOrb size={340} color="rgba(37,99,235,0.1)" top="45%" left="45%" delay={4} mobileHidden />
 
       <div className="section-shell max-w-7xl">
         <motion.div
@@ -74,37 +71,55 @@ export default function Experience() {
             {conferences.map((item, index) => (
               <li key={item.id} className="flex">
                 <motion.article
-                  className="glass-card gradient-border p-5 sm:p-6 w-full flex flex-col"
-                  style={{ '--item-accent': item.color }}
-                  initial={{ opacity: 0, y: 24 }}
+                  className="glass-card gradient-border p-6 relative overflow-hidden w-full flex flex-col"
+                  style={{ '--tag-accent': item.color, '--item-accent': item.color }}
+                  initial={{ opacity: 0, y: 28 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-60px' }}
+                  viewport={{ once: true, margin: '-80px' }}
                   transition={{ duration: 0.55, delay: index * 0.08, ease: EASE_OUT_EXPO }}
-                  whileHover={{ y: -4 }}
+                  whileHover={{
+                    y: -3,
+                  }}
                 >
-                  <div className="flex items-start gap-3 mb-3">
-                    <span className="text-2xl leading-none flex-shrink-0" aria-hidden="true">{item.icon}</span>
-                    <div className="min-w-0">
+                  {/* Header: icon + name + venue + period */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <ContentIcon id={item.id} />
+                    <div className="flex-1 min-w-0">
                       <h4
-                        className="font-bold text-base leading-tight"
+                        className="font-bold text-base leading-tight mb-1"
                         style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}
                       >
                         {item.name}
                       </h4>
-                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                        {item.venue} · {item.period}
-                      </p>
+                      <p className="accent-text text-xs font-medium mb-1">{item.venue}</p>
+                      <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <Calendar size={14} aria-hidden="true" />
+                        <span>{item.period}</span>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Role badge */}
                   <p className="accent-text inline-flex items-center gap-1.5 text-xs font-semibold mb-3">
                     <Mic size={11} aria-hidden="true" />
                     {item.role}
                   </p>
 
-                  <p className="text-xs leading-relaxed mt-auto" style={{ color: 'var(--text-secondary)' }}>
+                  {/* Description */}
+                  <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
                     {item.description}
                   </p>
+
+                  {/* Tags — pinned to bottom */}
+                  {item.tags && item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-auto">
+                      {item.tags.map((tag) => (
+                        <span key={tag} className="tag-chip">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </motion.article>
               </li>
             ))}

@@ -55,7 +55,7 @@ export default function GradientOrb({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [isMobile, mobileHidden]);
 
   if (mobileHidden && isMobile) return null;
 
@@ -75,20 +75,16 @@ export default function GradientOrb({
 
   const shouldAnimate = animate && !reducedMotion && inView;
 
-  if (!shouldAnimate) {
-    return <div ref={ref} style={style} aria-hidden="true" />;
-  }
-
   return (
     <motion.div
       ref={ref}
       style={style}
       aria-hidden="true"
-      animate={{
+      animate={shouldAnimate ? {
         opacity: [opacity * 0.75, opacity, opacity * 0.75],
         x: [0, 18, 0],
         y: [0, -18, 0],
-      }}
+      } : { opacity, x: 0, y: 0 }}
       transition={{
         duration: 14,
         delay,

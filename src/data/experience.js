@@ -90,6 +90,7 @@ export const conferences = [
     role: 'Oral presentation',
     description:
       'Presented "Exoplanets and the Search for Alien Life" at India\'s premier national astronomy conference, covering detection methods, biosignature candidates, and the habitability framework used in planetary science.',
+    tags: ['Exoplanets', 'Oral Presentation', 'ASI'],
     icon: '🎤',
     color: '#7c3aed',
   },
@@ -101,6 +102,7 @@ export const conferences = [
     role: 'Attended',
     description:
       'The annual public outreach event at which the Indian Institute of Science opens its campus for free exploration of its research, live experiments, and exhibitions.',
+    tags: ['Outreach', 'Research Exploration'],
     icon: '🔬',
     color: '#06b6d4',
   },

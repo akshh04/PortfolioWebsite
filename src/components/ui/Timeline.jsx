@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { education } from '../../data/education';
+import { ChevronDown } from 'lucide-react';
+import ContentIcon from './ContentIcon';
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
 
@@ -23,7 +25,7 @@ function TimelineItem({ item, index }) {
   return (
     <div className="flex items-start md:items-center gap-4 md:gap-0 mb-8 md:mb-10">
       {/* Node marker — left rail on mobile, centre column on desktop */}
-      <div className="flex-shrink-0 w-4 flex justify-center pt-2 md:pt-0 md:order-2 md:w-2/12">
+      <div className="shrink-0 w-4 flex justify-center pt-2 md:pt-0 md:order-2 md:w-2/12">
         <motion.span
           initial={{ scale: 0, opacity: 0 }}
           whileInView={{ scale: 1, opacity: 1 }}
@@ -64,16 +66,14 @@ function TimelineItem({ item, index }) {
         />
 
         <div className="flex items-start gap-3 mb-3">
-          <span className="text-2xl leading-none flex-shrink-0" aria-hidden="true">
-            {item.icon}
-          </span>
+          <ContentIcon education />
           <div className="min-w-0">
-            <h3
+            <h4
               className="font-bold text-base leading-tight"
               style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}
             >
               {item.degree}
-            </h3>
+            </h4>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               {item.period}
             </p>
@@ -97,7 +97,7 @@ function TimelineItem({ item, index }) {
           >
             {item.ongoing && (
               <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                className="w-1.5 h-1.5 rounded-full shrink-0"
                 style={{ background: item.color }}
                 aria-hidden="true"
               />
@@ -118,7 +118,10 @@ function TimelineItem({ item, index }) {
 }
 
 export default function Timeline() {
+  const degrees = education.filter(item => item.id === 'msc-bremen' || item.id === 'bsc-physics');
+  const earlierEducation = education.filter(item => !degrees.includes(item));
   return (
+    <div className="education-overview">
     <div className="relative">
       {/*
         A single continuous rail replaces the old per-item connector segments,
@@ -134,9 +137,19 @@ export default function Timeline() {
         }}
       />
 
-      {education.map((item, index) => (
+      {degrees.map((item, index) => (
         <TimelineItem key={item.id} item={item} index={index} />
       ))}
+    </div>
+    {earlierEducation.length > 0 && <details className="supporting-details">
+      <summary><span>Earlier education<span className="disclosure-description">Secondary &amp; higher secondary qualifications</span></span><ChevronDown size={20} aria-hidden="true" /></summary>
+      <ul className="earlier-education">
+        {earlierEducation.map(item => <li key={item.id}>
+          <div><h4>{item.degree}</h4><p>{item.institution} · {item.university}</p></div>
+          <div className="earlier-education-meta"><span>{item.period}</span><span>{item.grade}</span></div>
+        </li>)}
+      </ul>
+    </details>}
     </div>
   );
 }
