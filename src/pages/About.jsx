@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Mail, GraduationCap, FileText } from 'lucide-react';
-import { PUBLIC_CV } from '../lib/cv';
-import CVNotice from '../components/ui/CVNotice';
+import { MapPin, Mail, GraduationCap } from 'lucide-react';
+import CVActions from '../components/ui/CVActions';
 import Timeline from '../components/ui/Timeline';
 import ContentIcon from '../components/ui/ContentIcon';
 import { memberships } from '../data/education';
@@ -11,7 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
 
 const sectionVariants = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_OUT_EXPO } },
 };
 
@@ -62,7 +61,7 @@ export default function About() {
             // A -60px slide is wider than the gutter on a phone, so during the
             // animation the card pushed past the viewport edge. 32px stays
             // inside the padding while reading the same way.
-            initial={{ opacity: 0, x: -32 }}
+            initial={{ opacity: 0, x: -12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={VIEWPORT}
             transition={{ duration: 0.7, ease: EASE_OUT_EXPO }}
@@ -110,7 +109,7 @@ export default function About() {
 
           {/* Bio text */}
           <motion.div
-            initial={{ opacity: 0, x: 32 }}
+            initial={{ opacity: 0, x: 12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={VIEWPORT}
             transition={{ duration: 0.7, delay: 0.1, ease: EASE_OUT_EXPO }}
@@ -119,13 +118,11 @@ export default function About() {
               Exploring the cosmos, one equation at a time.
             </h3>
             <p className="text-base leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
-              Physics graduate pursuing an M.Sc. in Physics at the University of Bremen, with a research
-              focus on dark matter, cosmology, and galaxy dynamics. Contributed to the development of low-noise RF
-              systems for a radio telescope array and conducted independent theoretical work on dark matter candidates
-              and galaxy rotation curve anomalies. Presented "Exoplanets and the Search for Alien Life" at the 44th
-              Meeting of the Astronomical Society of India. Formally trained as a data analyst, and fluent in Python,
-              SQL, and astronomical data analysis pipelines.
+              I'm pursuing an M.Sc. in Physics at the University of Bremen, focusing on dark matter,
+              cosmology, and galaxy dynamics. My work connects theoretical research, radio astronomy
+              instrumentation, and scientific computing.
             </p>
+            <details className="bio-details"><summary>More about my background</summary><p>I contributed to low-noise RF systems for a radio telescope array and studied dark matter candidates and galaxy rotation curves. I presented “Exoplanets and the Search for Alien Life” at the 44th Meeting of the Astronomical Society of India. My data analysis toolkit includes Python, SQL, and astronomical analysis pipelines.</p></details>
 
             <ul className="flex flex-col gap-3 list-none p-0 m-0">
               {contactFacts.map(({ icon: Icon, text }) => (
@@ -141,9 +138,7 @@ export default function About() {
                 </li>
               ))}
             </ul>
-            <div className="mt-5"><a className="cv-download" href={PUBLIC_CV.href} target="_blank" rel="noopener noreferrer">
-              <FileText size={18} aria-hidden="true" />{PUBLIC_CV.label}<span className="cv-format">PDF</span><span className="sr-only"> (opens in a new tab)</span>
-            </a><CVNotice /></div>
+            <div className="mt-5"><CVActions /></div>
           </motion.div>
         </div>
 

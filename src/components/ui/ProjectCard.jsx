@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, ExternalLink, ArrowUpRight } from 'lucide-react';
+import { Calendar, ArrowUpRight } from 'lucide-react';
+import ProjectDestinations from './ProjectDestinations';
 import ContentIcon from './ContentIcon';
 import ProjectPreview from './ProjectPreview';
 import ProjectDialog from './ProjectDialog';
@@ -9,12 +10,13 @@ export default function ProjectCard({ project, featured = false, delay = 0, onOp
   const [expanded, setExpanded] = useState(false);
   const openerRef = useRef(null);
   const isUpcoming = project.status === 'upcoming';
+  const compact = Boolean(project.slug && !featured);
   const open = event => onOpen ? onOpen(project, event.currentTarget) : setExpanded(true);
   const close = () => setExpanded(false);
   return <>
       <motion.article
-        className={`glass-card project-card${featured ? ' project-featured' : ''}`}
-        initial={{ opacity: 0, y: 28 }}
+        className={`glass-card project-card${featured ? ' project-featured' : ''}${compact ? ' project-compact' : ''}`}
+        initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-80px' }}
         transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
@@ -25,9 +27,6 @@ export default function ProjectCard({ project, featured = false, delay = 0, onOp
          * text edges shimmer on hover. A clean lift reads better and costs one
          * composited transform.
          */
-        whileHover={{
-          y: -3,
-        }}
         style={{ '--tag-accent': 'var(--nebula-1)', '--item-accent': 'var(--nebula-1)' }}
       >
         {/* Upcoming overlay */}
@@ -43,6 +42,17 @@ export default function ProjectCard({ project, featured = false, delay = 0, onOp
           </div>
         )}
 
+        {compact ? <div className="compact-project-content">
+          <p className="project-category">{project.contribution?.scope || project.type}</p>
+          <h3 className="compact-project-title">{project.title}</h3>
+          <p className="compact-project-teaser">{project.result || project.shortDesc}</p>
+          <div className="compact-project-footer">
+            <span>{project.period}</span>
+            {!isUpcoming && <button ref={openerRef} type="button" className="project-open" aria-label={`${project.title} — open details`} aria-haspopup="dialog" onClick={open}>
+              View case study<ArrowUpRight size={15} aria-hidden="true" />
+            </button>}
+          </div>
+        </div> : <>
         {project.preview && <ProjectPreview kind={project.preview} featured={featured} />}
         <div className="project-content">
         {featured && <p className="featured-label"><span aria-hidden="true" />Featured project · Live application</p>}
@@ -65,10 +75,10 @@ export default function ProjectCard({ project, featured = false, delay = 0, onOp
           </div>
         </div>
 
-        {featured && <p className="featured-description">Explore distant worlds through NASA data, habitability models, and interactive visualizations.</p>}
+        {project.result && <div className="project-result"><p>Key result</p><strong>{project.result}</strong></div>}
         {project.summary ? <dl className="project-summary">
           <div><dt>Aim</dt><dd>{project.summary.aim}</dd></div>
-          <div><dt>My work</dt><dd>{project.summary.contribution}</dd></div>
+          <div><dt>My role</dt><dd>{project.contribution.role}</dd></div>
           <div><dt>Outcome</dt><dd>{project.summary.outcome}</dd></div>
         </dl> : <p className="project-description" style={{ color: 'var(--text-secondary)' }}>{project.shortDesc}</p>}
 
@@ -83,17 +93,17 @@ export default function ProjectCard({ project, featured = false, delay = 0, onOp
           ))}
         </div>
 
-        <div className="project-actions">
+        <ProjectDestinations project={project} compact>
         {!isUpcoming && (
           <button ref={openerRef} type="button" className="project-open accent-text mt-4 text-xs font-medium"
             aria-label={`${project.title} — open details`} aria-haspopup="dialog"
             onClick={open}>
-            {project.slug ? 'Read case study' : 'Read details'}<ArrowUpRight size={16} aria-hidden="true" />
+            {project.slug ? 'View case study' : 'Read details'}<ArrowUpRight size={16} aria-hidden="true" />
           </button>
         )}
-        {project.link && <a className="project-live" href={project.link} target="_blank" rel="noopener noreferrer">Open live app <ExternalLink size={14} aria-hidden="true" /><span className="sr-only">(opens in a new tab)</span></a>}
+        </ProjectDestinations>
         </div>
-        </div>
+        </>}
       </motion.article>
 
       {expanded && <ProjectDialog project={project} onClose={close} openerRef={openerRef} />}

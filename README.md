@@ -53,6 +53,9 @@ Open the local URL printed by Vite. The default development port is `5173`; Vite
 | --- | --- |
 | `npm run dev` | Start the development server with hot reload |
 | `npm test` | Run the automated regression tests |
+| `npm run test:browser` | Build an isolated test site and run responsive browser and accessibility checks |
+| `npm run test:mobile` | Run phone and tablet checks in portrait and landscape, including Chromium and WebKit |
+| `npm run record:demo` | Re-record the public Exoplanet Explorer walkthrough; requires FFmpeg |
 | `npm run build` | Build the production website into `dist/` |
 | `npm run preview` | Serve an existing production build locally |
 | `npm run build:cv` | Regenerate the public academic CV; requires Python dependencies |
@@ -63,6 +66,12 @@ To preview a production build:
 npm run build
 npm run preview
 ```
+
+For browser checks, install the matching Chromium runtime once with `npx playwright install chromium`, then run `npm run test:browser`. The suite covers desktop, phone, narrow-phone, tablet, laptop, and landscape behavior, including social popups, contact delivery success/failure, draft preservation, focus trapping, CV requests, video playback, and accessibility in both themes. Email requests are mocked; no test message reaches an inbox. Test-only builds and credentials stay in `tmp/browser-build/`, separate from the deployable `dist/` directory. Open the latest report with `npx playwright show-report`.
+
+For the expanded mobile and tablet review, install both engines with `npx playwright install chromium webkit`, then run `npm run test:mobile`. Screenshots are saved under `artifacts/mobile-review/`, and the report is in `playwright-report/mobile/`. This review leaves the AI controls closed and excludes the assistant from accessibility scans. Device emulation does not replace checks on physical phones or tablets; email and social destinations are intercepted during interaction tests.
+
+The embedded demo is a real, silent application recording with English captions and a text walkthrough. To replace it, make FFmpeg available on `PATH` (or set `FFMPEG_PATH` to its executable) and run `npm run record:demo`. Review the recording and captions before publishing; the app and its dataset can change.
 
 ## Optional configuration
 
@@ -113,11 +122,12 @@ Keep App Check debug tokens in ignored local development configuration. Do not i
 | `src/data/experience.js` | Internships and conferences |
 | `src/data/education.js` | Education, memberships, credentials, and hero statistics |
 | `src/data/skills.js` | Skill categories and descriptions |
+| `src/data/socials.js` | Shared social profile URLs, handles, and descriptions |
 | `src/lib/contact.js` | Contact destination and form helpers |
 | `src/lib/assistantKnowledge.js` | Assistant context derived from portfolio facts |
 | `src/lib/assistantStarters.js` | Built-in assistant topic answers |
 | `src/index.css` | Theme tokens and responsive styles |
-| `public/previews/` | Project preview images |
+| `public/previews/` | Project preview images, recorded demo, and captions |
 | `public/akash-portrait.png` | Profile portrait |
 
 Section links use fragments such as `#projects` and `#contact`. Case studies use `#project/exoplanet-explorer`. Credentials expand inside Skills and retain the `#certificates` destination. Navigation manages browser history, header offsets, and keyboard focus without React Router.

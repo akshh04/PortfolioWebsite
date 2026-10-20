@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ExternalLink, ZoomIn, ZoomOut, Copy, ArrowLeft, ArrowRight, MessageSquare } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Copy, ArrowLeft, ArrowRight, MessageSquare } from 'lucide-react';
+import ProjectDestinations from './ProjectDestinations';
+import ProjectDemo from './ProjectDemo';
 import { discussProject, projectUrl } from '../../lib/projectNavigation';
 
 export default function ProjectDialog({ project, onClose, openerRef, projectList = [], onNavigate }) {
@@ -37,7 +39,7 @@ export default function ProjectDialog({ project, onClose, openerRef, projectList
         else closeRef.current();
       }
       if (event.key !== 'Tab') return;
-      const controls = [...dialogRef.current.querySelectorAll('button:not([disabled]), a[href], input')].filter(node => node.getClientRects().length);
+      const controls = [...dialogRef.current.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, video[controls], [tabindex]:not([tabindex="-1"])')].filter(node => node.getClientRects().length);
       const first = controls[0], last = controls.at(-1);
       if (event.shiftKey && (document.activeElement === first || !controls.includes(document.activeElement))) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || !controls.includes(document.activeElement))) { event.preventDefault(); first?.focus(); }
@@ -91,10 +93,11 @@ export default function ProjectDialog({ project, onClose, openerRef, projectList
             {project.slug && <div className="detail-sharing">
               <div className="detail-sharing-actions">
                 <button type="button" onClick={copyLink}><Copy size={16} aria-hidden="true" />Copy project link</button>
-                {project.link && <a className="detail-open-live" href={project.link} target="_blank" rel="noopener noreferrer">Open live app<ExternalLink size={16} aria-hidden="true" /><span className="sr-only">(opens in a new tab)</span></a>}
               </div>
               <span role="status">{copyStatus}</span>
             </div>}
+            <ProjectDestinations project={project} />
+            {project.result && <div className="project-result"><p>Key result</p><strong>{project.result}</strong></div>}
             {project.contribution && <dl className="contribution-facts" aria-label="Project contribution">
               <div><dt>Project type</dt><dd>{project.contribution.scope}</dd></div>
               <div><dt>My role</dt><dd>{project.contribution.role}</dd></div>
@@ -102,10 +105,12 @@ export default function ProjectDialog({ project, onClose, openerRef, projectList
             </dl>}
             {project.summary && <dl className="project-summary detail-summary">{[['Aim', 'aim'], ['My work', 'contribution'], ['Outcome', 'outcome']].map(([label, key]) => <div key={key}><dt>{label}</dt><dd>{project.summary[key]}</dd></div>)}</dl>}
             {project.preview === 'app' && <section className="detail-section"><h3>In action</h3><button ref={screenshotRef} type="button" className="screenshot-trigger" onClick={() => setImageOpen(true)}><img className="project-detail-image" src="/previews/exoplanet-explorer.jpg" alt="Preview of the Exoplanet Explorer dashboard" width="1440" height="1000" /><span><ZoomIn size={16} />Enlarge screenshot</span></button></section>}
-            {project.fullDesc && <section className="detail-section"><h3>Overview</h3><p>{project.fullDesc}</p></section>}
+            {(project.overview || project.fullDesc) && <section className="detail-section"><h3>Overview</h3><p>{project.overview || project.fullDesc}</p>
+              {project.overview && project.fullDesc && <details className="reading-details"><summary>Read the technical background</summary><p>{project.fullDesc}</p></details>}
+            </section>}
+            <ProjectDemo key={project.slug || project.id} demo={project.demo} />
             {project.highlights && <section className="detail-section"><h3>{project.slug ? 'Methods & deliverables' : 'Responsibilities & contributions'}</h3><ul>{project.highlights.map(line => <li key={line}>{line}</li>)}</ul></section>}
             <section className="detail-section"><h3>Tools & topics</h3><div className="flex flex-wrap gap-2">{project.tags.map(tag => <span className="tag-chip" key={tag}>{tag}</span>)}</div></section>
-            {project.link && <a className="btn-primary detail-live" href={project.link} target="_blank" rel="noopener noreferrer">Open live app<ExternalLink size={16} /><span className="sr-only">(opens in a new tab)</span></a>}
             {project.slug && <div className="project-discussion">
               <p>Have a question or an idea for this work?</p>
               <button type="button" onClick={() => discussProject(project)}><MessageSquare size={18} aria-hidden="true" />Discuss this project<ArrowRight size={16} aria-hidden="true" /></button>

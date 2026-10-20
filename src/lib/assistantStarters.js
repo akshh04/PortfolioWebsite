@@ -10,7 +10,7 @@ const explorer = projects.find(item => item.slug === 'exoplanet-explorer');
 // Verified shortcuts work without a model request and use the same public data.
 export const assistantStarters = [
   { id: 'contact', title: 'Get in touch', label: 'How can I contact Akash?', icon: 'mail',
-    answer: { text: `You can email Akash at ${OWNER_EMAIL}, or use the contact form on this website. He typically replies within 24–48 hours. About and Contact offer a generated portfolio CV, not his original CV. Request the original by email or through “Request résumé” in the contact section.`, sources: source('contact') } },
+    answer: { text: `You can email Akash at ${OWNER_EMAIL}, or use the contact form on this website. He typically replies within 24–48 hours. About and Contact offer a generated portfolio CV, not his original CV. Request the original by email or through “Request original CV” in the contact section.`, sources: source('contact') } },
   { id: 'research', title: 'Research interests', label: 'What does Akash research?', icon: 'telescope',
     answer: { text: 'Akash focuses on dark matter, cosmology, and galaxy dynamics, with experience in radio astronomy instrumentation and scientific data analysis. He is pursuing an M.Sc. in Physics at the University of Bremen.', sources: source('about', 'experience') } },
   { id: 'projects', title: 'Explore the work', label: 'What has Akash built?', icon: 'orbit',

@@ -1,21 +1,14 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Github, Linkedin, Instagram } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
-
-const socials = [
-  { icon: Linkedin, href: 'https://linkedin.com/in/akashsankar04', label: 'LinkedIn' },
-  { icon: Github, href: 'https://github.com/Akash-github-tech', label: 'GitHub' },
-  { icon: Instagram, href: 'https://www.instagram.com/akash_sankar_/', label: 'Instagram' },
-];
+import SocialLinks from '../ui/SocialLinks';
 
 export default function Footer() {
   const { theme } = useTheme();
   return (
-    // The 8rem floor was clearance for the old fixed bottom nav; with that
-    // gone, only the device's own safe-area inset still needs respecting.
-    <footer className="relative z-10 pt-12 pb-[max(3rem,env(safe-area-inset-bottom,2rem))] md:pb-12 px-6">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+    // At desktop widths the assistant floats at the bottom right. Leave room
+    // beneath the footer so it cannot cover the social links at the page end.
+    <footer className="relative z-10 pt-12 pb-[max(3rem,env(safe-area-inset-bottom,2rem))] lg:pb-[max(7rem,env(safe-area-inset-bottom,2rem))] px-6">
+      <div className="max-w-6xl mx-auto flex flex-col xl:flex-row items-center justify-between gap-6">
         {/* Branding */}
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div 
@@ -52,28 +45,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Social icons */}
-        <nav aria-label="Social profiles" className="flex items-center gap-4">
-          {socials.map(({ icon: Icon, href, label }) => (
-            <motion.a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              // tap-target grows the hit area to 44px without changing the
-              // 36px circle you actually see.
-              className="tap-target w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-              whileHover={{ scale: 1.15, y: -3, boxShadow: '0 0 16px rgba(124,58,237,0.4)' }}
-              whileTap={{ scale: 0.95 }}
-              // "opens in a new tab" is part of what the control does, and
-              // target="_blank" gives no warning on its own.
-              aria-label={`${label} — opens in a new tab`}
-            >
-              <Icon size={15} style={{ color: 'var(--text-secondary)' }} aria-hidden="true" />
-            </motion.a>
-          ))}
-        </nav>
+        <SocialLinks compact />
 
       </div>
 

@@ -14,6 +14,9 @@
     "build": "vite build",
     "build:cv": "node scripts/build-public-cv.mjs",
     "test": "node --test tests/*.test.js",
+    "test:browser": "node scripts/build-browser-tests.mjs && playwright test",
+    "test:mobile": "node scripts/build-browser-tests.mjs && playwright test --config playwright.mobile.config.js",
+    "record:demo": "node scripts/record-project-demo.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -30,6 +33,8 @@
     "three": "^0.168.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^18.3.9",
     "@types/react-dom": "^18.3.0",

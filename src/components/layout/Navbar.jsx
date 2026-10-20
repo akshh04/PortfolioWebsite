@@ -293,7 +293,7 @@ export default function Navbar() {
             whileTap={{ scale: 0.97 }}
           >
             <FileText size={14} aria-hidden="true" />
-            Résumé
+            Request original CV
           </motion.button>
 
           {/* Hamburger — below lg */}
@@ -440,7 +440,7 @@ export default function Navbar() {
                     }}
                   >
                     <FileText size={15} aria-hidden="true" />
-                    Request Résumé
+                    Request original CV
                   </button>
                 </div>
               </div>

@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OWNER_EMAIL, initialForm, validateContact, contactPayload, emailDraft, readContactDraft, saveContactDraft, projectDiscussionDraft, originalCvRequestDraft } from '../lib/contact';
-import { PUBLIC_CV } from '../lib/cv';
+import CVActions from '../components/ui/CVActions';
 import CVNotice from '../components/ui/CVNotice';
+import SocialLinks from '../components/ui/SocialLinks';
 import {
-  Mail, Linkedin, Github, Instagram, FileText, CheckCircle,
+  Mail, CheckCircle,
   ExternalLink, Send, User, AtSign, MessageSquare, Tag, Loader2, AlertCircle,
   Copy, Check
 } from 'lucide-react';
 
 // ─── EmailJS Configuration ─────────────────────────────────────────────────
-const EMAILJS_SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'portfolio.email';
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'autoreply-temp-portfolio';
-const EMAILJS_AUTO_REPLY_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_AUTO_REPLY_TEMPLATE_ID || 'user_temp_18';
+const EMAILJS_SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID || '';
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '';
+const EMAILJS_AUTO_REPLY_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_AUTO_REPLY_TEMPLATE_ID || '';
 const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || ''; // Configured in .env (ignored from git)
 
 /*
@@ -21,33 +22,9 @@ const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || ''; // Co
  * with EmailJS's own internal error text, which says nothing useful. Detect
  * the missing key up front and route people to the address instead.
  */
-const EMAILJS_CONFIGURED = Boolean(EMAILJS_PUBLIC_KEY);
+const EMAILJS_CONFIGURED = Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY);
 
 
-
-const socials = [
-  {
-    icon: Linkedin,
-    label: 'LinkedIn',
-    href: 'https://linkedin.com/in/akashsankar04',
-    color: '#0077b5',
-    desc: 'Professional profile',
-  },
-  {
-    icon: Github,
-    label: 'GitHub',
-    href: 'https://github.com/Akash-github-tech',
-    color: '#8b5cf6',
-    desc: 'Code repositories',
-  },
-  {
-    icon: Instagram,
-    label: 'Instagram',
-    href: 'https://www.instagram.com/akash_sankar_/',
-    color: '#e1306c',
-    desc: 'Personal updates',
-  },
-];
 
 const inputStyles = {
   width: '100%',
@@ -299,7 +276,7 @@ export default function Contact() {
       // EmailJS throttles consecutive requests. The courtesy reply is delayed
       // and independent: its failure must not ask visitors to resend a message
       // that already reached the owner. Capture this submission's values.
-      autoReplyTimerRef.current = setTimeout(() => {
+      if (EMAILJS_AUTO_REPLY_TEMPLATE_ID) autoReplyTimerRef.current = setTimeout(() => {
         emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_AUTO_REPLY_TEMPLATE_ID, {
           to_name: form.name.trim(), to_email: form.email.trim(),
           user_email: form.email.trim(), reply_to: OWNER_EMAIL,
@@ -320,7 +297,7 @@ export default function Contact() {
     animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
   };
   const fadeUp = {
-    initial: { opacity: 0, y: 20 },
+    initial: { opacity: 0, y: 10 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT_EXPO } },
   };
 
@@ -340,21 +317,19 @@ export default function Contact() {
           <motion.p variants={fadeUp} className="section-eyebrow">Say hello</motion.p>
           {/* h2, not h1 — one document, one h1 (the hero name). */}
           <motion.h2 variants={fadeUp} className="section-title">
-            Let&apos;s talk about{' '}
-            <span className="gradient-text">the universe</span>
+            Let&apos;s discuss{' '}
+            <span className="gradient-text">research or collaboration</span>
           </motion.h2>
           <motion.p variants={fadeUp} className="section-subtitle mx-auto">
-            Whether you have a research opportunity, collaboration idea, or just want to geek out about dark matter — my inbox is always open.
+            Have a research opportunity, a collaboration in mind, or a question about my work? Get in touch.
           </motion.p>
         </motion.div>
 
-        <div className="contact-access" aria-label="Quick contact and academic CV">
-          <div><h3>Connect directly</h3><CVNotice /></div>
-          <div className="contact-access-actions">
-            <a className="contact-email-action" href={`mailto:${OWNER_EMAIL}`}><Mail size={18} aria-hidden="true" />Email Akash</a>
-            <a className="cv-download" href={PUBLIC_CV.href} target="_blank" rel="noopener noreferrer"><FileText size={18} aria-hidden="true" />{PUBLIC_CV.label}<span className="cv-format">PDF</span><span className="sr-only"> (opens in a new tab)</span></a>
-          </div>
+        <div className="contact-access" aria-label="Quick contact">
+          <div><h3>Connect directly</h3><p>Email me or find me on these platforms.</p></div>
+          <a className="contact-email-action" href={`mailto:${OWNER_EMAIL}`}><Mail size={18} aria-hidden="true" />Email Akash</a>
         </div>
+        <SocialLinks />
 
         <section className="collaboration-interests" aria-labelledby="collaboration-title">
           <h3 id="collaboration-title">Let's work together</h3>
@@ -373,7 +348,7 @@ export default function Contact() {
           {/* Contact Form — 3/5 width */}
           <motion.div
             className="lg:col-span-3"
-            initial={{ opacity: 0, x: -28 }}
+            initial={{ opacity: 0, x: -12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={VIEWPORT}
             transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
@@ -385,7 +360,7 @@ export default function Contact() {
                   <Send size={16} className="text-white" />
                 </div>
                 <h3 className="font-bold text-lg" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
-                  Send a Message
+                  Send a message
                 </h3>
               </div>
 
@@ -471,7 +446,7 @@ export default function Contact() {
                     ) : status === 'success' ? (
                       <><CheckCircle size={16} /> Sent!</>
                     ) : (
-                      <><Send size={16} /> {EMAILJS_CONFIGURED ? 'Send Message' : 'Open email draft'}</>
+                      <><Send size={16} /> {EMAILJS_CONFIGURED ? 'Send message' : 'Open email draft'}</>
                     )}
                   </span>
                 </motion.button>
@@ -482,7 +457,7 @@ export default function Contact() {
           {/* Right column: email CTA + quick info — 2/5 */}
           <motion.div
             className="lg:col-span-2 flex flex-col gap-5"
-            initial={{ opacity: 0, x: 28 }}
+            initial={{ opacity: 0, x: 12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={VIEWPORT}
             transition={{ duration: 0.6, delay: 0.1, ease: EASE_OUT_EXPO }}
@@ -493,14 +468,13 @@ export default function Contact() {
               The copy button used to sit inside an <a href="mailto:"> wrapping
               the whole card — a control nested in a link, which is invalid HTML
               and gives assistive tech two conflicting actions for one element.
-              The link is now a stretched overlay covering the card, and the
-              copy button sits above it on a higher layer, so each control is a
-              sibling of the other and both have their own hit area.
+              Keep the email links and copy button separate so each action has
+              its own hit area and keyboard focus.
             */}
             <motion.div
               className="glass-card p-6 relative"
               style={{ border: '1px solid rgba(124,58,237,0.15)' }}
-              whileHover={{ scale: 1.01 }}
+
             >
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
                 style={{ background: 'var(--gradient)' }}>
@@ -508,8 +482,8 @@ export default function Contact() {
               </div>
               <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Email me directly</p>
               <div className="flex items-center justify-between gap-2">
-                <a href="mailto:akashsankarv@gmail.com" className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
-                  akashsankarv@gmail.com
+                <a href={`mailto:${OWNER_EMAIL}`} className="font-bold text-sm gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif', wordBreak: 'break-all' }}>
+                  {OWNER_EMAIL}
                 </a>
                 <button
                   type="button"
@@ -539,37 +513,16 @@ export default function Contact() {
                 </button>
               </div>
               <p role="status" className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>{copyError ? 'Copy unavailable. Select the address above to copy it.' : copied ? 'Email address copied.' : ''}</p>
-              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--nebula-3-text)' }}>
-                Open mail client <ExternalLink size={11} />
-              </p>
+              <a href={`mailto:${OWNER_EMAIL}`} className="tap-target text-xs mt-2 inline-flex items-center gap-1 underline" style={{ color: 'var(--nebula-3-text)' }}>
+                Open mail client <ExternalLink size={11} aria-hidden="true" />
+              </a>
             </motion.div>
 
-            {/*
-              Resume. This was a clickable <div>: no keyboard focus, no role,
-              invisible to anyone not using a mouse. A real button does the same
-              job and comes with all of that for free.
-            */}
-            <motion.button
-              type="button"
-              className="glass-card p-6 cursor-pointer w-full text-left block"
-              style={{ border: '1px solid rgba(37,99,235,0.15)' }}
-              onClick={() => window.dispatchEvent(new CustomEvent('requestResume'))}
-              aria-label="Request résumé — fills in the contact form above"
-              whileHover={{ scale: 1.02, boxShadow: '0 16px 48px rgba(37,99,235,0.2)' }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: 'linear-gradient(135deg, #2563eb, #06b6d4)' }}>
-                <FileText size={20} className="text-white" />
-              </div>
-              <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                Want the original CV?
-              </p>
-              <p className="font-bold text-sm" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
-                Request Résumé
-              </p>
-              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>via Email</p>
-            </motion.button>
+            <section className="glass-card p-6 cv-options" aria-labelledby="cv-options-title">
+              <h3 id="cv-options-title">Choose a CV</h3>
+              <CVNotice />
+              <CVActions />
+            </section>
 
             {/* Response time note */}
             <div className="glass-card p-5" style={{ border: '1px solid var(--border)' }}>
@@ -580,52 +533,6 @@ export default function Contact() {
           </motion.div>
         </div>
 
-        {/* Social links */}
-        <motion.div
-          className="contact-socials"
-          initial="initial"
-          whileInView="animate"
-          viewport={{ once: true }}
-          variants={{ animate: { transition: { staggerChildren: 0.1 } } }}
-        >
-          <div className="text-center mb-8">
-            <h3 className="section-eyebrow">Find me online</h3>
-          </div>
-
-          <div className="contact-social-grid grid md:grid-cols-3 gap-4">
-            {socials.map(({ icon: Icon, label, href, color, desc }) => (
-              <motion.a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                variants={fadeUp}
-                aria-label={`${label} — ${desc}, opens in a new tab`}
-                className="contact-social-link glass-card gradient-border p-6 flex flex-col items-center gap-3 text-center no-underline"
-                whileHover={{
-                  y: -8,
-                  boxShadow: `0 16px 48px ${color}30`,
-                }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <motion.div
-                  className="contact-social-icon w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ background: `${color}18`, border: `1px solid ${color}35` }}
-                  whileHover={{ rotate: 10, scale: 1.1 }}
-                >
-                  <Icon size={22} style={{ color }} aria-hidden="true" />
-                </motion.div>
-                <div className="contact-social-copy">
-                  <p className="font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
-                    {label}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{desc}</p>
-                </div>
-                <ExternalLink className="contact-social-arrow" size={16} aria-hidden="true" />
-              </motion.a>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </div>
   );

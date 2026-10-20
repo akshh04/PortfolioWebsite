@@ -80,7 +80,7 @@ export default function Home() {
           {!desktop && <div className="landing-orbit-space" aria-hidden="true"><OrbitalSystem /></div>}
           <div className="landing-actions">
             <a href="#projects" onClick={navigate('projects')} className="btn-primary landing-primary"><span>View my work <ArrowRight size={17} aria-hidden="true" /></span></a>
-            <button type="button" onClick={requestResume} className="btn-glass landing-resume"><FileText size={16} aria-hidden="true" />Request résumé</button>
+            <button type="button" onClick={requestResume} className="btn-glass landing-resume"><FileText size={16} aria-hidden="true" />Request original CV</button>
             <a href="#contact" onClick={navigate('contact')} className="landing-contact"><Mail size={16} aria-hidden="true" />Get in touch</a>
           </div>
         </motion.div>
