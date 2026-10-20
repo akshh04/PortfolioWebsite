@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Mail, GraduationCap } from 'lucide-react';
+import { Mail, GraduationCap } from 'lucide-react';
 import CVActions from '../components/ui/CVActions';
 import Timeline from '../components/ui/Timeline';
 import ContentIcon from '../components/ui/ContentIcon';
@@ -17,7 +17,6 @@ const sectionVariants = {
 const VIEWPORT = { once: true, margin: '-80px' };
 
 const contactFacts = [
-  { icon: MapPin, text: 'Bremen, Germany' },
   { icon: GraduationCap, text: 'M.Sc. Physics · University of Bremen' },
   { icon: Mail, text: 'akashsankarv@gmail.com' },
 ];

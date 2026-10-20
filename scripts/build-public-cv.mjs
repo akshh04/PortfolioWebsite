@@ -13,7 +13,6 @@ await mkdir(new URL('../tmp/pdfs/', import.meta.url), { recursive: true });
 await mkdir(new URL('../output/pdf/', import.meta.url), { recursive: true });
 const facts = {
   name: 'Akash Sankar Vigneshwaran', email: OWNER_EMAIL,
-  website: 'https://akashsankar.in', location: 'Bremen, Germany',
   updated: new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'long', year: 'numeric' }),
   education: education.slice(0, 2), experience, projects, conferences, memberships, skillCategories,
 };

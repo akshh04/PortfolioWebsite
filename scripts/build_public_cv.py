@@ -30,9 +30,9 @@ def p(value, style='body'):
 
 story = [p(clean(facts['name']), 'name'),
          p('M.Sc. Physics | Astrophysics research', 'contact'),
-         p(f"{clean(facts['location'])} &nbsp; | &nbsp; <link href='mailto:{facts['email']}' color='{accent}'>{facts['email']}</link> &nbsp; | &nbsp; <link href='{facts['website']}' color='{accent}'>akashsankar.in</link>", 'contact'),
+         p(f"<link href='mailto:{facts['email']}' color='{accent}'>{facts['email']}</link>", 'contact'),
          Spacer(1, 7),
-         p(f"Generated from the portfolio, not the original CV. Request the original <link href='mailto:{facts['email']}?subject=Original%20CV%20request' color='{accent}'>by email</link> or <link href='{facts['website']}/#contact' color='{accent}'>on the contact page</link>.", 'meta'),
+         p(f"Generated from the portfolio, not the original CV. Request the original <link href='mailto:{facts['email']}?subject=Original%20CV%20request' color='{accent}'>by email</link>.", 'meta'),
          Spacer(1, 9),
          p('Research interests: dark matter, cosmology, galaxy dynamics, radio astronomy instrumentation, and scientific data analysis.')]
 
@@ -77,7 +77,7 @@ def footer(canvas, doc):
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(colors.HexColor(muted))
     canvas.drawString(42, 22, f"Generated portfolio CV | Updated {facts['updated']}")
-    canvas.drawRightString(A4[0] - 42, 22, 'akashsankar.in | 1')
+    canvas.drawRightString(A4[0] - 42, 22, '1')
 
 doc = SimpleDocTemplate(str(output), pagesize=A4, rightMargin=42, leftMargin=42, topMargin=35, bottomMargin=46,
                         title='Akash Sankar Vigneshwaran - Generated Portfolio CV', author=facts['name'])

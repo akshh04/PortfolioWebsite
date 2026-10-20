@@ -6,7 +6,7 @@ import { OWNER_EMAIL } from './contact.js';
 import { assistantSources } from './assistantPolicy.js';
 
 export const assistantFacts = {
-  about: { name: 'Akash Sankar Vigneshwaran', location: 'Bremen, Germany',
+  about: { name: 'Akash Sankar Vigneshwaran',
     interests: ['Dark matter', 'Cosmology', 'Galaxy dynamics', 'Radio astronomy instrumentation', 'Scientific data analysis'],
     collaboration: 'Open to research collaboration. Visitors should contact Akash to confirm current availability.', email: OWNER_EMAIL },
   education: education.map(({ degree, institution, university, period, grade }) => ({ degree, institution, university, period, grade })),
